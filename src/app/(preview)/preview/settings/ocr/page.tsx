@@ -31,7 +31,7 @@ export default function OcrSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div>
         <h3 className="text-lg font-semibold flex items-center gap-2"><ScanLine className="h-5 w-5 text-brand" />OCR — Reconocimiento de texto</h3>
         <p className="mt-1 text-sm text-muted-foreground">Extrae texto de imágenes, facturas, tarjetas de presentación y documentos escaneados.</p>
