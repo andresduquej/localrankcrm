@@ -161,13 +161,7 @@ export function GlobalSearch() {
   }
 
   if (!open) {
-    return (
-      <button onClick={() => setOpen(true)} className="hidden md:flex items-center gap-2 rounded-lg border bg-white/90 backdrop-blur-sm px-4 py-1.5 text-xs text-muted-foreground hover:border-brand hover:text-brand transition-colors fixed top-3 right-16 z-[45] shadow-sm">
-        <Search className="h-3.5 w-3.5" />
-        <span>Buscar...</span>
-        <kbd className="rounded border bg-gray-50 px-1.5 py-0.5 text-[9px] font-mono">⌘K</kbd>
-      </button>
-    );
+    return null;
   }
 
   return (

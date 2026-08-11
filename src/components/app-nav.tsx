@@ -244,6 +244,10 @@ export function AppNav({
       </div>
 
       <nav className="flex flex-col gap-0.5 overflow-y-auto">
+        {/* Search trigger — inside sidebar, never overlaps content */}
+        <button onClick={() => { const e = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }); window.dispatchEvent(e); }} className="flex items-center gap-[11px] rounded-lg px-3 py-2 text-sm font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors mb-1">
+          <Search className="h-[18px] w-[18px]" strokeWidth={1.7} /><span className="flex-1">Buscar...</span><kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-mono text-white/40">⌘K</kbd>
+        </button>
         {/* Dashboard — always visible */}
         <Link href={`${prefix}/dashboard`} className={cn("flex items-center gap-[11px] rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", (pathname === `${prefix}/dashboard` || pathname === "/dashboard") ? "bg-[var(--sidebar-active)] border-l-[3px] border-[var(--sidebar-active-text)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
           <LayoutDashboard className="h-[18px] w-[18px]" strokeWidth={1.7} /><span>Dashboard</span>
