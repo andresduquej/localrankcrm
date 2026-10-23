@@ -19,6 +19,9 @@ const prefixes = {
   crmContact: "crc",
   crmTask: "crt",
   crmNote: "crn",
+  telegramConnection: "tgc",
+  appointment: "apt",
+  rateLimitHit: "rl",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimitDb } from "@/lib/rate-limit-db";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export const POST = withAuth(async (_session, req: Request) => {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "local";
-  if (!checkRateLimit(`agent-chat:${ip}`, CHAT_RATE_LIMIT).allowed) {
+  if (!(await checkRateLimitDb(`agent-chat:${ip}`, CHAT_RATE_LIMIT)).allowed) {
     return apiError(
       429,
       "rate_limited",

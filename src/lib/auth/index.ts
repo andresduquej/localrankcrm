@@ -5,7 +5,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { getDb, schema } from "@/lib/db";
 import { getEnv } from "@/lib/env";
-import { AUTH_RATE_LIMIT, checkRateLimit } from "@/lib/rate-limit";
+import { AUTH_RATE_LIMIT } from "@/lib/rate-limit";
+import { checkRateLimitDb } from "@/lib/rate-limit-db";
 import { sendEmail, passwordResetEmail } from "@/lib/email";
 import {
   onUserCreated,
@@ -85,7 +86,7 @@ function createAuth() {
             ctx.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
             ctx.headers?.get("x-real-ip") ||
             "local";
-          const result = checkRateLimit(`${ctx.path}:${ip}`, AUTH_RATE_LIMIT);
+          const result = await checkRateLimitDb(`${ctx.path}:${ip}`, AUTH_RATE_LIMIT);
           if (!result.allowed) {
             throw new APIError("TOO_MANY_REQUESTS", {
               message: "Demasiados intentos; espera unos minutos",

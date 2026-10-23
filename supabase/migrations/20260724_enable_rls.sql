@@ -71,3 +71,12 @@ ALTER TABLE "crm_note" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for crm_contact" ON "crm_contact" FOR ALL USING (false);
 CREATE POLICY "Deny all for crm_task" ON "crm_task" FOR ALL USING (false);
 CREATE POLICY "Deny all for crm_note" ON "crm_note" FOR ALL USING (false);
+
+-- ============ TELEGRAM / AGENDA / RATE LIMIT (agregadas 2026-10) ============
+ALTER TABLE "telegram_connection" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "appointment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "rate_limit_hit" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Deny all for telegram_connection" ON "telegram_connection" FOR ALL USING (false);
+CREATE POLICY "Deny all for appointment" ON "appointment" FOR ALL USING (false);
+CREATE POLICY "Deny all for rate_limit_hit" ON "rate_limit_hit" FOR ALL USING (false);

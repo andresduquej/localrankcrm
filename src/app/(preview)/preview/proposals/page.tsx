@@ -3,6 +3,23 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Copy, Download, Edit2, Eye, FileText, Image, Link, Mic, PenTool, Plus, Send, Trash2, Upload, X } from "lucide-react";
 import { loadFromStorage, saveToStorage, generateId } from "@/lib/local-storage";
+import DOMPurify from "dompurify";
+
+/**
+ * Sanea el HTML pegado en embeds: solo etiquetas de contenido e iframes
+ * https. Todo lo demás (scripts, handlers, javascript:) se elimina.
+ */
+function sanitizeEmbedHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["iframe", "div", "span", "p", "b", "strong", "i", "em", "u", "a", "img", "video", "audio", "h1", "h2", "h3", "blockquote"],
+    ALLOWED_ATTR: ["src", "href", "title", "width", "height", "frameborder", "allow", "allowfullscreen", "style", "alt"],
+    ALLOWED_URI_REGEXP: /^https?:\/\//i,
+  });
+}
+
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 import { pushUndo } from "@/lib/undo-store";
 
 /** Deferred input: local state while typing, saves to parent only on blur/Enter */
@@ -381,14 +398,14 @@ export default function ProposalsPage() {
         .signature{border-top:1px solid #e5e7eb;padding-top:16px;margin-top:32px}
         .footer{border-top:1px solid #e5e7eb;padding-top:14px;margin-top:40px;text-align:center;font-size:11px;color:#9ca3af;white-space:pre-wrap;line-height:1.6}
       </style></head><body>
-      ${proposal.bannerUrl ? `<img style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:16px" src="${proposal.bannerUrl}" />` : ""}
-      ${proposal.logoUrl ? `<img class="logo" src="${proposal.logoUrl}" />` : ""}
-      <h1>${proposal.title}</h1>
-      <p class="meta">Cliente: ${proposal.client || "—"} | Fecha: ${proposal.createdAt}</p>
-      ${proposal.sections.map((s) => `<h2>${s.title}</h2><p>${s.content}</p>${(s.media || []).filter((m) => m.type === "image").map((m) => `<img class="media" src="${m.url}" />`).join("")}`).join("")}
-      ${proposal.total ? `<div class="total">Total: ${proposal.total}</div>` : ""}
-      ${proposal.signatureUrl || proposal.signatureName ? `<div class="signature">${proposal.signatureUrl ? `<img class="sig" src="${proposal.signatureUrl}" />` : ""}${proposal.signatureName ? `<p><strong>${proposal.signatureName}</strong></p>` : ""}</div>` : ""}
-      ${proposal.footerText ? `<div class="footer">${proposal.footerText.replace(/\n/g, "<br/>")}</div>` : ""}
+      ${proposal.bannerUrl ? `<img style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:16px" src="${escapeHtml(proposal.bannerUrl)}" />` : ""}
+      ${proposal.logoUrl ? `<img class="logo" src="${escapeHtml(proposal.logoUrl)}" />` : ""}
+      <h1>${escapeHtml(proposal.title)}</h1>
+      <p class="meta">Cliente: ${escapeHtml(proposal.client || "—")} | Fecha: ${escapeHtml(proposal.createdAt)}</p>
+      ${proposal.sections.map((s) => `<h2>${escapeHtml(s.title)}</h2><p>${escapeHtml(s.content)}</p>${(s.media || []).filter((m) => m.type === "image").map((m) => `<img class="media" src="${escapeHtml(m.url)}" />`).join("")}`).join("")}
+      ${proposal.total ? `<div class="total">Total: ${escapeHtml(proposal.total)}</div>` : ""}
+      ${proposal.signatureUrl || proposal.signatureName ? `<div class="signature">${proposal.signatureUrl ? `<img class="sig" src="${escapeHtml(proposal.signatureUrl)}" />` : ""}${proposal.signatureName ? `<p><strong>${escapeHtml(proposal.signatureName)}</strong></p>` : ""}</div>` : ""}
+      ${proposal.footerText ? `<div class="footer">${escapeHtml(proposal.footerText).replace(/\n/g, "<br/>")}</div>` : ""}
       </body></html>
     `;
     const win = window.open("", "_blank");
@@ -520,7 +537,7 @@ export default function ProposalsPage() {
                               {m.type === "audio" && <audio src={m.url} controls className="w-full" />}
                               {m.type === "embed" && (
                                 m.url.trim().startsWith("<")
-                                  ? <div className="rounded border bg-gray-50 p-2" dangerouslySetInnerHTML={{ __html: m.url }} />
+                                  ? <div className="rounded border bg-gray-50 p-2" dangerouslySetInnerHTML={{ __html: sanitizeEmbedHtml(m.url) }} />
                                   : <iframe src={m.url} className="w-full h-64 rounded border" allowFullScreen />
                               )}
                             </div>

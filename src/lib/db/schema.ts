@@ -381,6 +381,56 @@ export const agentTestCase = pgTable(
  * CRM Modules (sincronizados con Supabase — multi-dispositivo)
  * ============================================================ */
 
+export const telegramConnection = pgTable(
+  "telegram_connection",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" })
+      .unique(),
+    botUsername: text("bot_username").notNull().default(""),
+    tokenCipher: text("token_cipher").notNull(),
+    tokenIv: text("token_iv").notNull(),
+    tokenTag: text("token_tag").notNull(),
+    chatId: text("chat_id"),
+    chatName: text("chat_name"),
+    webhookSecret: text("webhook_secret").notNull(),
+    headerSecret: text("header_secret").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("telegram_connection_org_idx").on(t.organizationId)]
+);
+
+export const appointment = pgTable(
+  "appointment",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    notes: text("notes").notNull().default(""),
+    source: text("source").notNull().default("api"),
+    remindedAt: timestamp("reminded_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("appointment_org_start_idx").on(t.organizationId, t.startsAt)]
+);
+
+export const rateLimitHit = pgTable(
+  "rate_limit_hit",
+  {
+    id: text("id").primaryKey(),
+    bucketKey: text("bucket_key").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("rate_limit_hit_key_at_idx").on(t.bucketKey, t.at)]
+);
+
 export const crmContact = pgTable(
   "crm_contact",
   {

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   // Canales
   { href: "/preview/settings/whatsapp", label: "WhatsApp" },
+  { href: "/preview/settings/telegram", label: "Telegram" },
   { href: "/preview/settings/sms", label: "SMS" },
   { href: "/preview/settings/email-marketing", label: "Email Marketing" },
   // Integraciones & APIs

@@ -29,6 +29,7 @@
     "better-auth": "^1.1.14",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.17",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^0.469.0",
     "nanoid": "^5.0.9",
