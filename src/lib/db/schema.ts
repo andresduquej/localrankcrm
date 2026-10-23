@@ -397,6 +397,7 @@ export const telegramConnection = pgTable(
     chatName: text("chat_name"),
     webhookSecret: text("webhook_secret").notNull(),
     headerSecret: text("header_secret").notNull(),
+    digestDate: text("digest_date"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

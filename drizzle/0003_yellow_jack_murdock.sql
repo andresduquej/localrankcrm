@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_connection" ADD COLUMN "digest_date" text;
