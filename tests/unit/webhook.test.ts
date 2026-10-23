@@ -1,10 +1,14 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isValidSignature,
   isValidWebhookToken,
   safeEqual,
 } from "@/server/inbox/webhook";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("capa 1: token en la ruta (FR-041/FR-083)", () => {
   it("segmento correcto → válido", () => {
@@ -46,9 +50,16 @@ describe("capa 2: firma x-hub-signature-256 (FR-042)", () => {
     expect(isValidSignature(body, null, secret)).toBe(false);
   });
 
-  it("sin secreto configurado la capa está desactivada → pasa", () => {
+  it("sin secreto configurado fuera de producción la capa está desactivada → pasa", () => {
+    vi.stubEnv("NODE_ENV", "test");
     expect(isValidSignature(body, null, undefined)).toBe(true);
     expect(isValidSignature(body, "sha256=basura", undefined)).toBe(true);
+  });
+
+  it("sin secreto configurado en producción → falla cerrado", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(isValidSignature(body, null, undefined)).toBe(false);
+    expect(isValidSignature(body, "sha256=basura", undefined)).toBe(false);
   });
 });
 

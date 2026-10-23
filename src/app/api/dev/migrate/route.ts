@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db";
-import { withAuth } from "@/lib/api";
+import { apiError, withAuth } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -7,8 +7,21 @@ export const dynamic = "force-dynamic";
  * POST /api/dev/migrate
  * Runs the CRM modules migration SQL on the database.
  * Only accessible by authenticated users (owner).
+ * En producción queda deshabilitado salvo ALLOW_MIGRATE=true (DDL manual
+ * no debería exponerse como endpoint regular).
  */
 export const POST = withAuth(async () => {
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.ALLOW_MIGRATE !== "true"
+  ) {
+    return apiError(
+      403,
+      "forbidden",
+      "Migración manual deshabilitada en producción (define ALLOW_MIGRATE=true para habilitarla puntualmente)."
+    );
+  }
+
   const sql = getSql();
 
   try {

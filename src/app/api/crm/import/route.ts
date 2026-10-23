@@ -1,9 +1,68 @@
 import { z } from "zod";
-import { apiError, withAuth } from "@/lib/api";
+import { parseBody, withAuth } from "@/lib/api";
 import { getDb, schema } from "@/lib/db";
 import { newId } from "@/lib/db/ids";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Topes anti-abuso: máximo 500 ítems por colección y longitudes acotadas en
+ * cada campo. El body crudo anterior permitía arrays sin límite (DoS de
+ * escritura) y columnas arbitrarias.
+ */
+const MAX_ITEMS = 500;
+
+const contactSchema = z.object({
+  id: z.string().max(64).optional(),
+  name: z.string().max(200).optional(),
+  phone: z.string().max(30).optional(),
+  email: z.string().max(320).optional(),
+  company: z.string().max(200).optional(),
+  role: z.string().max(120).optional(),
+  image: z.string().max(1_000_000).optional(),
+  archived: z.boolean().optional(),
+  tags: z.array(z.unknown()).max(100).optional(),
+  customFields: z.array(z.unknown()).max(100).optional(),
+  notes: z.array(z.unknown()).max(500).optional(),
+  reminders: z.array(z.unknown()).max(500).optional(),
+  createdAt: z.string().max(64).optional(),
+});
+
+const taskSchema = z.object({
+  id: z.string().max(64).optional(),
+  title: z.string().max(300).optional(),
+  description: z.string().max(100_000).optional(),
+  priority: z.string().max(20).optional(),
+  status: z.string().max(30).optional(),
+  dueDate: z.string().max(30).optional(),
+  assignee: z.string().max(200).optional(),
+  relatedTo: z.string().max(200).optional(),
+  category: z.string().max(120).optional(),
+  tags: z.array(z.unknown()).max(100).optional(),
+  done: z.boolean().optional(),
+  createdAt: z.string().max(64).optional(),
+});
+
+const noteSchema = z.object({
+  id: z.string().max(64).optional(),
+  title: z.string().max(300).optional(),
+  content: z.string().max(100_000).optional(),
+  image: z.string().max(1_000_000).optional(),
+  relatedTo: z.string().max(200).optional(),
+  category: z.string().max(120).optional(),
+  tags: z.array(z.unknown()).max(100).optional(),
+  pinned: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  createdAt: z.string().max(64).optional(),
+});
+
+const importSchema = z
+  .object({
+    contacts: z.array(contactSchema).max(MAX_ITEMS).optional(),
+    tasks: z.array(taskSchema).max(MAX_ITEMS).optional(),
+    notes: z.array(noteSchema).max(MAX_ITEMS).optional(),
+  })
+  .strict();
 
 /**
  * POST /api/crm/import
@@ -11,13 +70,15 @@ export const dynamic = "force-dynamic";
  * Expects { contacts: [...], tasks: [...], notes: [...] }
  */
 export const POST = withAuth(async (session, req: Request) => {
-  const body = await req.json();
+  const parsed = await parseBody(req, importSchema);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
   const orgId = session.organizationId;
   const db = getDb();
   const results = { contacts: 0, tasks: 0, notes: 0 };
 
   // Import contacts
-  const contacts = Array.isArray(body.contacts) ? body.contacts : [];
+  const contacts = body.contacts ?? [];
   for (const c of contacts) {
     try {
       await db.insert(schema.crmContact).values({
@@ -43,7 +104,7 @@ export const POST = withAuth(async (session, req: Request) => {
   }
 
   // Import tasks
-  const tasks = Array.isArray(body.tasks) ? body.tasks : [];
+  const tasks = body.tasks ?? [];
   for (const t of tasks) {
     try {
       await db.insert(schema.crmTask).values({
@@ -68,7 +129,7 @@ export const POST = withAuth(async (session, req: Request) => {
   }
 
   // Import notes
-  const notes = Array.isArray(body.notes) ? body.notes : [];
+  const notes = body.notes ?? [];
   for (const n of notes) {
     try {
       await db.insert(schema.crmNote).values({

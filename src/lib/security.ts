@@ -51,14 +51,6 @@ export function sanitizeForClient<T extends Record<string, unknown>>(
 }
 
 /**
- * Validate that a request has proper internal authorization
- */
-export function isInternalRequest(headers: Headers): boolean {
-  const internalKey = headers.get("x-internal-key");
-  return internalKey === process.env.BETTER_AUTH_SECRET;
-}
-
-/**
  * Rate limiter store (in-memory, per deployment)
  */
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();

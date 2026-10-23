@@ -11,9 +11,10 @@ Deploy:
 
 import os
 import sys
+import secrets
 import importlib
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -110,6 +111,20 @@ def normalize_result(raw: dict, username: str) -> ScrapedProfile:
     )
 
 
+# --- Auth ---
+# SCOUT_API_KEY: si esta definida, /scrape exige el header X-API-Key.
+# Sin ella el endpoint queda abierto (solo adecuado en localhost).
+API_KEY = os.getenv("SCOUT_API_KEY")
+
+
+def check_api_key(request: Request) -> None:
+    if not API_KEY:
+        return
+    provided = request.headers.get("x-api-key", "")
+    if not provided or not secrets.compare_digest(provided, API_KEY):
+        raise HTTPException(401, "API key invalida o ausente (header X-API-Key)")
+
+
 # --- Routes ---
 
 @app.get("/")
@@ -144,8 +159,10 @@ def platforms():
 
 
 @app.post("/scrape", response_model=ScrapeResponse)
-def scrape(req: ScrapeRequest):
+def scrape(req: ScrapeRequest, request: Request):
     """Scrape profiles from a platform."""
+    check_api_key(request)
+
     if req.platform not in SUPPORTED_PLATFORMS:
         raise HTTPException(400, f"Platform '{req.platform}' not supported")
 
@@ -155,11 +172,26 @@ def scrape(req: ScrapeRequest):
     if not req.usernames:
         raise HTTPException(400, "At least one username required")
 
-    # Set environment for this request
-    if req.linkedin_cookie:
-        os.environ["LINKEDIN_COOKIE"] = req.linkedin_cookie
-    if req.proxy:
-        os.environ["SCOUT_PROXY"] = req.proxy
+    # Cookie/proxy se aplican como variables de proceso por compatibilidad
+    # con los scrapers (que leen os.environ). Se limpian al terminar para no
+    # dejar credenciales persistidas ni compartirse entre requests.
+    _saved = {k: os.environ.get(k) for k in ("LINKEDIN_COOKIE", "SCOUT_PROXY")}
+    try:
+        if req.linkedin_cookie:
+            os.environ["LINKEDIN_COOKIE"] = req.linkedin_cookie
+        if req.proxy:
+            os.environ["SCOUT_PROXY"] = req.proxy
+
+        return _do_scrape(req)
+    finally:
+        for k, v in _saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _do_scrape(req: ScrapeRequest) -> ScrapeResponse:
 
     scraper = get_scraper(req.platform)
     results: list[ScrapedProfile] = []

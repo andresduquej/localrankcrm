@@ -170,6 +170,12 @@ export default function VaultPage() {
             )}
           </div>
         </div>
+        {/* Aviso: almacenamiento local sin cifrado real */}
+        <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <strong>Modo demo:</strong> esta boveda guarda los datos en el navegador (localStorage)
+          sin cifrado real. No almacenes credenciales de produccion aqui; usa un gestor de
+          contrasenas dedicado (1Password, Bitwarden, etc.).
+        </div>
       </div>
     );
   }

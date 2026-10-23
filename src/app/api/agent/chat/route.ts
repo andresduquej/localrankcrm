@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { apiError, parseBody } from "@/lib/api";
+import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,25 @@ export async function GET() {
   });
 }
 
-export async function POST(req: Request) {
+/**
+ * Límite anti-abuso del proxy IA: las llamadas se facturan con las API keys
+ * del servidor, así que la ruta exige sesión y tope por IP.
+ */
+const CHAT_RATE_LIMIT = { windowMs: 60 * 1000, max: 20 };
+
+export const POST = withAuth(async (_session, req: Request) => {
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "local";
+  if (!checkRateLimit(`agent-chat:${ip}`, CHAT_RATE_LIMIT).allowed) {
+    return apiError(
+      429,
+      "rate_limited",
+      "Demasiadas consultas al asistente en poco tiempo. Espera un momento."
+    );
+  }
+
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 
@@ -120,7 +139,7 @@ Usa **negritas** y bullet points (•). No agregues nada fuera del JSON.`;
   }
 
   return Response.json({ text: result.data.text, action: result.data.action ?? null });
-}
+});
 
 /** Builds a human-readable summary of the CRM data sent from the client. */
 function buildDataSummary(ctx: Record<string, unknown>): string {

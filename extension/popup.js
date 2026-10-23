@@ -291,7 +291,8 @@ function displayAnalysis(data) {
   if (wa) {
     waEl.textContent = "";
     var waLink = document.createElement("a");
-    waLink.href = escapeHtml(wa);
+    waLink.href = /^https?:\/\//i.test(wa) ? wa : "#";
+    waLink.rel = "noopener noreferrer";
     waLink.target = "_blank";
     waLink.textContent = "Si";
     waEl.appendChild(waLink);
@@ -313,8 +314,13 @@ function displayAnalysis(data) {
       var val = document.createElement("span");
       val.className = "data-value";
       var link = document.createElement("a");
-      link.href = entry[1];
+      // Los socials provienen de la página analizada (contenido de terceros):
+      // solo se permiten esquemas de navegación seguros, nunca javascript: & co.
+      var safeUrl = String(entry[1] || "");
+      if (!/^https?:\/\//i.test(safeUrl)) safeUrl = "#";
+      link.href = safeUrl;
       link.target = "_blank";
+      link.rel = "noopener noreferrer";
       link.textContent = entry[0];
       val.appendChild(link);
       var copyBtn = document.createElement("button");

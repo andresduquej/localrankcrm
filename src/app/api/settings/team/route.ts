@@ -35,7 +35,7 @@ export const GET = withAuth(async (session) => {
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email(),
-  password: z.string().min(8).max(128),
+  password: z.string().min(10).max(128),
 });
 
 /** Alta de cuenta de equipo (owner only): email + contraseña temporal (FR-061). */

@@ -61,7 +61,7 @@ function createAuth() {
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
-      minPasswordLength: 8,
+      minPasswordLength: 10,
       sendResetPassword: async ({ user, url }) => {
         await sendEmail({
           to: user.email,

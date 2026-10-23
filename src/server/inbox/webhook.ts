@@ -22,14 +22,16 @@ export function isValidWebhookToken(
 
 /**
  * Capa 2 (opcional): firma HMAC-SHA256 de Meta sobre el body CRUDO.
- * Devuelve true si no hay secreto configurado (capa desactivada).
+ * Sin secreto configurado la capa no existe: fuera de producción se permite
+ * (desarrollo/pruebas con mock), pero en producción se falla cerrado — la URL
+ * secreta sola no basta como autenticación del webhook.
  */
 export function isValidSignature(
   rawBody: string,
   signatureHeader: string | null,
   appSecret: string | undefined
 ): boolean {
-  if (!appSecret) return true;
+  if (!appSecret) return process.env.NODE_ENV !== "production";
   if (!signatureHeader?.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", appSecret)
     .update(rawBody, "utf8")

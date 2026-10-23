@@ -15,9 +15,15 @@ export function middleware(request: NextRequest) {
   // Security headers for all responses
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-XSS-Protection", "1; mode=block");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), geolocation=(), microphone=(self)");
+  // CSP en modo Report-Only: primero observar violaciones en producción antes
+  // de enforcedarla (Next.js usa scripts inline, así que exigir script-src
+  // requeriría nonces). frame-ancestors 'none' sí refuerza el anti-clickjacking.
+  response.headers.set(
+    "Content-Security-Policy-Report-Only",
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+  );
 
   // --- Auth protection for (app) routes ---
   // Skip auth for: preview, login, register, api/auth, static files

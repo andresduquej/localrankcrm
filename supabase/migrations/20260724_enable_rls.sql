@@ -60,3 +60,14 @@ CREATE POLICY "Deny all for agent_test_case" ON "agent_test_case" FOR ALL USING 
 -- VERIFY: After running, check Supabase Dashboard > Table Editor
 -- All tables should show the 🔒 icon indicating RLS is enabled
 -- ============================================================
+
+-- ============ CRM MODULE TABLES (agregadas 2026-10) ============
+-- Mismas reglas: la app accede server-side; se deniega todo acceso por API.
+
+ALTER TABLE "crm_contact" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "crm_task" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "crm_note" ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Deny all for crm_contact" ON "crm_contact" FOR ALL USING (false);
+CREATE POLICY "Deny all for crm_task" ON "crm_task" FOR ALL USING (false);
+CREATE POLICY "Deny all for crm_note" ON "crm_note" FOR ALL USING (false);
