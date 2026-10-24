@@ -38,8 +38,8 @@ export default function PreviewSettingsLayout({
         <h2 className="font-semibold text-sm md:text-base">Configuración</h2>
       </header>
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <nav className="shrink-0 space-y-0.5 border-b md:border-b-0 md:border-r p-2 md:p-3 md:w-44 overflow-x-auto md:overflow-x-visible">
-          <div className="flex md:flex-col gap-1 md:gap-0.5">
+        <nav className="shrink-0 space-y-0.5 border-b md:border-b-0 md:border-r p-2 md:p-3 md:w-44 overflow-visible">
+          <div className="flex flex-wrap gap-1 md:flex-nowrap md:flex-col md:gap-0.5">
             {TABS.map((t) => (
               <Link
                 key={t.href}
