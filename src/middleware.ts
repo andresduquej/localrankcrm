@@ -38,7 +38,9 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/icon") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/apple-touch-icon") ||
-    pathname === "/manifest.webmanifest";
+    pathname === "/manifest.webmanifest" ||
+    // Service worker: el navegador lo registra sin sesión (alcance raíz)
+    pathname === "/sw.js";
 
   if (!isPublicRoute && !pathname.startsWith("/api/")) {
     // Check for Better Auth session cookie
