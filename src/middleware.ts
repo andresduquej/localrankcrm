@@ -36,7 +36,9 @@ export function middleware(request: NextRequest) {
     pathname === "/" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/icon") ||
-    pathname.startsWith("/favicon");
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/apple-touch-icon") ||
+    pathname === "/manifest.webmanifest";
 
   if (!isPublicRoute && !pathname.startsWith("/api/")) {
     // Check for Better Auth session cookie
