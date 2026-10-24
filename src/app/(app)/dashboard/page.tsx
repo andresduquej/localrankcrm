@@ -46,6 +46,13 @@ type Cita = {
   notes?: string;
 };
 
+type Tarea = {
+  id: string;
+  title: string;
+  priority: string;
+  dueDate: string;
+};
+
 function saludo(): string {
   const h = new Date().getHours();
   if (h < 12) return "Buenos días";
@@ -76,11 +83,33 @@ function esHoyBogota(iso: string): boolean {
   return a.dia === b.dia && a.mesCorto === b.mesCorto;
 }
 
+/** Línea pequeña de la tarea: prioridad + fecha corta (o "sin fecha"). */
+function tareaMeta(t: Tarea): string {
+  const prioridad = t.priority === "high" ? "🔥 Alta" : t.priority === "low" ? "🌿 Baja" : "⚡ Media";
+  if (!t.dueDate) return prioridad;
+  const f = bogota(new Date(t.dueDate));
+  return `${prioridad} · ${f.dia} ${f.mesCorto}, ${f.hora}`;
+}
+
 export default function DashboardPage() {
   const pathname = usePathname();
   const prefix = pathname.startsWith("/preview") ? "/preview" : "";
   const [nombre, setNombre] = useState("Andres");
   const [citas, setCitas] = useState<Cita[]>([]);
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+
+  async function alternarTarea(id: string, done: boolean) {
+    // Optimista: quita/repone la fila según el resultado del PATCH.
+    setTareas((prev) => prev.filter((t) => t.id !== id));
+    const res = await fetch("/api/tasks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, done }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setTareas((prev) => prev);
+    }
+  }
 
   useEffect(() => {
     // Citas de cortesía mientras cargan las reales (o en modo demo)
@@ -108,6 +137,14 @@ export default function DashboardPage() {
         if (Array.isArray(d?.appointments) && d.appointments.length > 0) {
           setCitas(d.appointments.slice(0, 4));
         }
+      })
+      .catch(() => {});
+
+    // Tareas reales del mayordomo (bot de Telegram + esta UI)
+    fetch("/api/tasks")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (Array.isArray(d?.tasks)) setTareas(d.tasks.slice(0, 5));
       })
       .catch(() => {});
   }, []);
@@ -195,29 +232,29 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            {/* Tareas de hoy */}
+            {/* Tareas de hoy (las crea el bot de Telegram con /tarea) */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
               <h3 className="mb-1 font-semibold">Tareas de hoy</h3>
-              {[
-                { t: "Enviar propuesta a Cafe Velázquez", d: "Alta · antes de 5 PM", hecha: false },
-                { t: "Revisar cotización de Dental Sonrisa", d: "Media", hecha: true },
-                { t: "Llamar a leads nuevos", d: "2 pendientes", hecha: false },
-              ].map((tarea) => (
-                <div key={tarea.t} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
-                      tarea.hecha ? "border-green-500 bg-green-500 text-white" : "border-gray-300 text-transparent"
-                    }`}
-                  >
+              {tareas.length === 0 && (
+                <p className="py-3 text-sm text-muted-foreground">
+                  Sin tareas pendientes — crea una con <b>/tarea</b> en Telegram
+                </p>
+              )}
+              {tareas.map((tarea) => (
+                <button
+                  key={tarea.id}
+                  type="button"
+                  onClick={() => alternarTarea(tarea.id, true)}
+                  className="flex w-full items-center gap-3 border-b py-3 text-left last:border-0 last:pb-0"
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-xs font-bold text-transparent">
                     ✓
                   </span>
                   <div className="min-w-0 flex-1">
-                    <b className={`block truncate text-sm font-semibold ${tarea.hecha ? "text-muted-foreground line-through" : ""}`}>
-                      {tarea.t}
-                    </b>
-                    <small className="text-xs text-muted-foreground">{tarea.d}</small>
+                    <b className="block truncate text-sm font-semibold">{tarea.title}</b>
+                    <small className="text-xs text-muted-foreground">{tareaMeta(tarea)}</small>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

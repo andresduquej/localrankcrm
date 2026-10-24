@@ -168,5 +168,10 @@ export const HELP_TEXT = [
   "<code>/hoy</code> — citas de hoy",
   "<code>/lista</code> — próximas 10 citas",
   "<code>/hecho</code> &lt;texto&gt; — marca una cita como cumplida",
+  "",
+  "<code>/tarea</code> &lt;qué&gt; — crea una tarea. Ej: <code>/tarea llamar a Juan urgente mañana 15 min</code>",
+  "<code>/pendientes</code> — lista las tareas pendientes",
+  "<code>/listo</code> &lt;texto&gt; — marca una tarea hecha. Ej: <code>/listo llamar a juan</code>",
+  "",
   "<code>/ayuda</code> — esta ayuda",
 ].join("\n");

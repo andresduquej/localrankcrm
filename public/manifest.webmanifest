@@ -1,7 +1,7 @@
 {
-  "name": "LocalRank CRM",
-  "short_name": "LocalRank",
-  "description": "Tu CRM de ventas con asistente de Telegram",
+  "name": "DuqueLabs",
+  "short_name": "DuqueLabs",
+  "description": "Tu CRM y mano derecha con asistente de Telegram",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f7f9fb",

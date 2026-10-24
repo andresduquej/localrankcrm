@@ -476,6 +476,8 @@ export const crmTask = pgTable(
     category: text("category").notNull().default(""),
     tags: jsonb("tags").notNull().default([]),
     done: boolean("done").notNull().default(false),
+    durationMin: integer("duration_min"),
+    naggedAt: timestamp("nagged_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
@@ -483,6 +485,35 @@ export const crmTask = pgTable(
     index("crm_task_org_idx").on(t.organizationId),
     index("crm_task_org_status_idx").on(t.organizationId, t.status),
   ]
+);
+
+/**
+ * Config de IA por organización (proveedor, key cifrada, modelo) + endpoint
+ * de Hermes externo. La key y el PIN se guardan cifrados con AES-256-GCM
+ * (mismo patrón que telegram_connection).
+ */
+export const aiSettings = pgTable(
+  "ai_settings",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" })
+      .unique(),
+    provider: text("provider").notNull().default("openrouter"),
+    model: text("model").notNull().default(""),
+    baseUrl: text("base_url").notNull().default(""),
+    apiKeyCipher: text("api_key_cipher"),
+    apiKeyIv: text("api_key_iv"),
+    apiKeyTag: text("api_key_tag"),
+    hermesEndpoint: text("hermes_endpoint").notNull().default(""),
+    hermesPinCipher: text("hermes_pin_cipher"),
+    hermesPinIv: text("hermes_pin_iv"),
+    hermesPinTag: text("hermes_pin_tag"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("ai_settings_org_idx").on(t.organizationId)]
 );
 
 export const crmNote = pgTable(

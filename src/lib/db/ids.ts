@@ -22,6 +22,7 @@ const prefixes = {
   telegramConnection: "tgc",
   appointment: "apt",
   rateLimitHit: "rl",
+  aiSettings: "ais",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

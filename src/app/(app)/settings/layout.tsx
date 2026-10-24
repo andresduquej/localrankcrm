@@ -21,6 +21,7 @@ const TABS = [
   // Personalización
   { href: "/settings/branding", label: "Marca" },
   { href: "/settings/appearance", label: "Apariencia" },
+  { href: "/settings/notifications", label: "Notificaciones" },
   { href: "/settings/shortcuts", label: "Atajos" },
   // Organización
   { href: "/settings/team", label: "Equipo" },

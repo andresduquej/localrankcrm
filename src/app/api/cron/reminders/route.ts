@@ -9,6 +9,11 @@ import {
   listToday,
   sendDueReminders,
 } from "@/server/telegram/notify";
+import {
+  countPendingTasks,
+  listPendingTasks,
+  nagOverdueTasks,
+} from "@/server/telegram/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -43,23 +48,36 @@ export async function GET(req: Request) {
     .from(schema.telegramConnection);
 
   let sent = 0;
+  let nags = 0;
   let digests = 0;
   const today = bogotaToday();
 
   for (const c of conns) {
     if (!c.chatId) continue;
     sent += await sendDueReminders(c.organizationId).catch(() => 0);
+    nags += await nagOverdueTasks(c.organizationId).catch(() => 0);
 
     if (wantDigest && c.digestDate !== today) {
       const conn = await getConnectionByOrg(c.organizationId);
       const todays = await listToday(c.organizationId).catch(() => []);
-      if (conn?.chatId && todays.length > 0) {
-        const first = formatBogota(todays[0]!.startsAt);
-        const res = await sendTelegramMessage(
-          conn.token,
-          conn.chatId,
-          `☀️ <b>Tu día de hoy (${today}):</b>\n${formatAppointmentList(todays)}\n\nPrimera cita: ${escapeHtml(todays[0]!.title)} a las ${first.split(" ").pop()}`
-        );
+      const pending = await listPendingTasks(c.organizationId, 3).catch(() => []);
+      const totalTasks = await countPendingTasks(c.organizationId).catch(() => 0);
+      if (conn?.chatId && (todays.length > 0 || totalTasks > 0)) {
+        const parts: string[] = [];
+        if (todays.length > 0) {
+          const first = formatBogota(todays[0]!.startsAt);
+          parts.push(
+            `☀️ <b>Tu día de hoy (${today}):</b>\n${formatAppointmentList(todays)}\n\nPrimera cita: ${escapeHtml(todays[0]!.title)} a las ${first.split(" ").pop()}`
+          );
+        }
+        if (totalTasks > 0) {
+          const lines = pending.map((t) => {
+            const fecha = t.dueDate ? formatBogota(new Date(t.dueDate)) : "sin fecha";
+            return `• ${escapeHtml(t.title)} — 📅 ${fecha}`;
+          });
+          parts.push(`📋 <b>Tareas pendientes (${totalTasks}):</b>\n${lines.join("\n")}`);
+        }
+        const res = await sendTelegramMessage(conn.token, conn.chatId, parts.join("\n\n"));
         if (res.ok) digests++;
       }
       await db
@@ -72,6 +90,7 @@ export async function GET(req: Request) {
     ok: true,
     orgs: conns.filter((c) => c.chatId).length,
     sent,
+    nags,
     digests,
   });
 }

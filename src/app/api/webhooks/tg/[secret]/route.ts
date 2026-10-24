@@ -14,6 +14,15 @@ import {
   sendDueReminders,
 } from "@/server/telegram/notify";
 import { parseWhen } from "@/server/telegram/parse-when";
+import {
+  createTask,
+  completeTaskByTitle,
+  listPendingTasks,
+  nagOverdueTasks,
+  parseTaskText,
+  priorityLabel,
+  setDurationIfAwaiting,
+} from "@/server/telegram/tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +100,7 @@ export async function POST(
 
     // Aprovechamos cada interacción para disparar recordatorios pendientes.
     await sendDueReminders(conn.organizationId).catch(() => 0);
+    await nagOverdueTasks(conn.organizationId).catch(() => 0);
   } catch (err) {
     console.error("[webhook/tg] error:", err);
     // Responder 200 igualmente: Telegram reintentaría el mismo update.
@@ -145,6 +155,66 @@ async function handleCommand(organizationId: string, text: string): Promise<stri
       source: "telegram",
     });
     return `📌 Agendado: <b>${escapeHtml(parsed.title)}</b>\n🕐 ${formatBogota(parsed.startsAt)} (hora Colombia)\n\nTe aviso ${REMINDER_HINT}.`;
+  }
+
+  if (lower.startsWith("/tarea")) {
+    const rest = text.slice("/tarea".length).trim();
+    if (!rest) {
+      return "Dime la tarea. Ej: <code>/tarea llamar a Juan urgente mañana 15 min</code>";
+    }
+    const parsed = parseTaskText(rest);
+    // Sin fecha reconocible no es error: la tarea queda sin fecha.
+    const when = parseWhen(parsed.title);
+    const title = when && when.title !== "Cita" ? when.title : parsed.title;
+    const task = await createTask({
+      organizationId,
+      title,
+      priority: parsed.priority,
+      durationMin: parsed.durationMin,
+      dueDate: when ? when.startsAt : null,
+    });
+    const bits: string[] = [];
+    if (when) bits.push(`📅 ${formatBogota(when.startsAt)}`);
+    bits.push(priorityLabel(task.priority));
+    if (parsed.durationMin !== null) bits.push(`⏱ ${parsed.durationMin} min`);
+    let reply = `📝 Tarea: <b>${escapeHtml(task.title)}</b>\n${bits.join(" · ")}`;
+    if (parsed.durationMin === null) {
+      reply += "\n\n¿Cuánto le dedicás? Responde <code>15</code>, <code>30</code> o <code>60</code> (minutos).";
+    }
+    return reply;
+  }
+
+  if (lower.startsWith("/pendientes")) {
+    const rows = await listPendingTasks(organizationId, 10);
+    if (rows.length === 0) {
+      return "Nada pendiente. Sacaste todo de la cabeza 🧠";
+    }
+    const lines = rows.map((t, i) => {
+      const fecha = t.dueDate ? formatBogota(new Date(t.dueDate)) : "sin fecha";
+      return `${i + 1}. ${escapeHtml(t.title)} — 📅 ${fecha} · ${priorityLabel(t.priority)}`;
+    });
+    return `📋 <b>Pendientes:</b>\n${lines.join("\n")}`;
+  }
+
+  if (lower.startsWith("/listo")) {
+    const needle = text.slice("/listo".length).trim();
+    const done = await completeTaskByTitle(organizationId, needle);
+    if (!done) {
+      return "No encontré esa tarea pendiente. Usa /pendientes para verlas.";
+    }
+    return `✅ Tarea hecha: <b>${escapeHtml(done.title)}</b>`;
+  }
+
+  // Respuesta a "¿cuánto le dedicás?": un número solo, opcional con unidad.
+  // Sin tarea esperando la duración cae al catch-all de abajo.
+  const num = text.match(/^\d{1,3}\s*(min|minutos?|m|h|horas?)?$/i);
+  if (num) {
+    const n = parseInt(num[0]!, 10);
+    const minutes = (num[1] ?? "").toLowerCase().startsWith("h") ? n * 60 : n;
+    const task = await setDurationIfAwaiting(organizationId, minutes);
+    if (task) {
+      return `⏱ Anotado: ${minutes} min para «${escapeHtml(task.title)}». Te fastidio hasta que la hagas.`;
+    }
   }
 
   // Texto libre sin comando → sugerir el formato.

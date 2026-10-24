@@ -80,3 +80,7 @@ ALTER TABLE "rate_limit_hit" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for telegram_connection" ON "telegram_connection" FOR ALL USING (false);
 CREATE POLICY "Deny all for appointment" ON "appointment" FOR ALL USING (false);
 CREATE POLICY "Deny all for rate_limit_hit" ON "rate_limit_hit" FOR ALL USING (false);
+
+-- ============ IA SETTINGS (agregada 2026-10) ============
+ALTER TABLE "ai_settings" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for ai_settings" ON "ai_settings" FOR ALL USING (false);

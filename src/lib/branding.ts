@@ -17,7 +17,7 @@ export type Branding = {
   accent: string; // hex del acento base elegido
 };
 
-export const DEFAULT_BRANDING: Branding = { name: "LocalRank", accent: "#0a6cff" };
+export const DEFAULT_BRANDING: Branding = { name: "DuqueLabs", accent: "#0a6cff" };
 
 /** Presets del handoff (valores exactos). */
 export const ACCENT_PRESETS: Record<string, { label: string; set: AccentSet }> = {

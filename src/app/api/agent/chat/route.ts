@@ -2,6 +2,8 @@ import { z } from "zod";
 import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
+import { resolveProviderForOrg } from "@/server/ai/settings";
+import { getSessionOrNull } from "@/lib/auth/session";
 import { checkRateLimitDb } from "@/lib/rate-limit-db";
 
 export const dynamic = "force-dynamic";
@@ -29,9 +31,16 @@ const CrmChatResponse = z.object({
 });
 
 export async function GET() {
+  // Config por organización (si hay sesión) + entorno global, para que el
+  // cliente sepa si el asistente está disponible sin llamar al POST.
+  const session = await getSessionOrNull();
+  const orgProviderConfigured = session
+    ? (await resolveProviderForOrg(session.organizationId)) !== null
+    : false;
   return Response.json({
     status: "ok",
-    aiConfigured: isAiConfigured(),
+    aiConfigured: orgProviderConfigured || isAiConfigured(),
+    orgProviderConfigured,
     note: "POST a esta ruta con {message, crmContext} para consultar el asistente.",
   });
 }
@@ -42,7 +51,7 @@ export async function GET() {
  */
 const CHAT_RATE_LIMIT = { windowMs: 60 * 1000, max: 20 };
 
-export const POST = withAuth(async (_session, req: Request) => {
+export const POST = withAuth(async (session, req: Request) => {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
@@ -58,11 +67,13 @@ export const POST = withAuth(async (_session, req: Request) => {
   const body = await parseBody(req, bodySchema);
   if (!body.ok) return body.response;
 
-  if (!isAiConfigured()) {
+  // Prioridad: config IA por organización (BD); si no hay, entorno global.
+  const orgProvider = await resolveProviderForOrg(session.organizationId);
+  if (!(orgProvider !== null || isAiConfigured())) {
     return apiError(
       503,
       "ai_not_configured",
-      "No hay proveedor de IA configurado. Agrega GEMINI_API_KEY o OPENROUTER_API_TOKEN en las variables de entorno."
+      "No hay proveedor de IA configurado. Configúralo en Ajustes → IA / APIs (o define OPENROUTER_API_TOKEN en las variables de entorno)."
     );
   }
 
@@ -124,11 +135,17 @@ Usa **negritas** y bullet points (•). No agregues nada fuera del JSON.`;
 
   messages.push({ role: "user", content: message });
 
-  const result = await chatJson(CrmChatResponse, messages);
+  const result = await chatJson(CrmChatResponse, messages, {
+    provider: orgProvider ?? undefined,
+  });
 
   if (!result.ok) {
     if (result.error === "not_configured") {
-      return apiError(503, "ai_not_configured", "Proveedor de IA no configurado.");
+      return apiError(
+        503,
+        "ai_not_configured",
+        "Proveedor de IA no configurado. Revísalo en Ajustes → IA / APIs."
+      );
     }
     console.error("[agent/chat] LLM error:", result.detail);
     return apiError(
