@@ -57,7 +57,7 @@ export function passwordResetEmail(resetUrl: string, userName?: string): string 
   return `
     <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #00288e; margin: 0; font-size: 24px;">LocalRank CRM</h1>
+        <h1 style="color: #0a6cff; margin: 0; font-size: 24px;">LocalRank CRM</h1>
       </div>
       <h2 style="color: #191c1e; font-size: 18px;">Restablecer contraseña</h2>
       <p style="color: #505f76; font-size: 14px; line-height: 1.6;">
@@ -65,7 +65,7 @@ export function passwordResetEmail(resetUrl: string, userName?: string): string 
         Recibimos una solicitud para restablecer tu contraseña. Haz clic en el botón para crear una nueva:
       </p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${resetUrl}" style="background-color: #00288e; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+        <a href="${resetUrl}" style="background-color: #0a6cff; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
           Restablecer contraseña
         </a>
       </div>
@@ -82,14 +82,14 @@ export function welcomeEmail(userName: string, loginUrl: string): string {
   return `
     <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
-        <h1 style="color: #00288e; margin: 0; font-size: 24px;">LocalRank CRM</h1>
+        <h1 style="color: #0a6cff; margin: 0; font-size: 24px;">LocalRank CRM</h1>
       </div>
       <h2 style="color: #191c1e; font-size: 18px;">¡Bienvenido, ${userName}! 🎉</h2>
       <p style="color: #505f76; font-size: 14px; line-height: 1.6;">
         Tu cuenta ha sido creada exitosamente. Ya puedes acceder a tu CRM:
       </p>
       <div style="text-align: center; margin: 30px 0;">
-        <a href="${loginUrl}" style="background-color: #00288e; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+        <a href="${loginUrl}" style="background-color: #0a6cff; color: white; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
           Ir al CRM
         </a>
       </div>

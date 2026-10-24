@@ -18,7 +18,7 @@ type BrandingConfig = {
 
 const DEFAULT: BrandingConfig = {
   name: "LocalRank", tagline: "Enterprise CRM", logoUrl: "", logoCompactUrl: "", faviconUrl: "",
-  primaryColor: "#00288e", secondaryColor: "#3b82f6", accentColor: "#10b981", bgColor: "#f7f9fb", textColor: "#191c1e",
+  primaryColor: "#0a6cff", secondaryColor: "#3b82f6", accentColor: "#10b981", bgColor: "#f7f9fb", textColor: "#191c1e",
   font: "Inter", fontHeading: "Inter",
   customDomain: "", appSubdomain: "", sslEnabled: true, loginPageBranding: true,
   hideProviderBranding: false, sidebarLabel: "CRM", productName: "LocalRank CRM", ctaText: "Nuevo Registro", footerText: "© 2026 LocalRank. Todos los derechos reservados.",
@@ -27,7 +27,7 @@ const DEFAULT: BrandingConfig = {
 
 const FONTS = ["Inter", "Geist", "Poppins", "Roboto", "Open Sans", "Montserrat", "Lato", "Nunito", "DM Sans", "Plus Jakarta Sans"];
 const PRESET_PALETTES = [
-  { name: "Enterprise Blue", colors: ["#00288e", "#3b82f6", "#10b981", "#f7f9fb", "#191c1e"] },
+  { name: "Azul iOS", colors: ["#0a6cff", "#3b82f6", "#10b981", "#f7f9fb", "#191c1e"] },
   { name: "Modern Purple", colors: ["#7c3aed", "#a855f7", "#f59e0b", "#faf5ff", "#1f2937"] },
   { name: "Ocean Teal", colors: ["#0d9488", "#06b6d4", "#f43f5e", "#f0fdfa", "#134e4a"] },
   { name: "Coral Energy", colors: ["#e11d48", "#fb923c", "#3b82f6", "#fff1f2", "#1f2937"] },
