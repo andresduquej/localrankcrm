@@ -227,3 +227,123 @@
     .lg\:col-span-2 { grid-column: span 2 !important; }
   }
 }
+
+/* ============================================================
+   iOS design layer — materiales de vidrio, safe areas, spring
+   (solo estética: se aplica sobre el sistema Atlas existente)
+   ============================================================ */
+:root {
+  --ios-ease: cubic-bezier(0.32, 0.72, 0, 1);        /* curva sheet de iOS */
+  --ios-ease-out: cubic-bezier(0.16, 1, 0.3, 1);     /* salida rápida */
+  --ios-glass: rgba(255, 255, 255, 0.72);
+  --ios-glass-strong: rgba(255, 255, 255, 0.85);
+  --ios-hairline: rgba(20, 22, 30, 0.08);
+  --ios-shadow-float: 0 8px 32px -6px rgba(15, 20, 40, 0.18);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+.dark {
+  --ios-glass: rgba(22, 26, 36, 0.72);
+  --ios-glass-strong: rgba(22, 26, 36, 0.88);
+  --ios-hairline: rgba(255, 255, 255, 0.1);
+  --ios-shadow-float: 0 8px 32px -6px rgba(0, 0, 0, 0.55);
+}
+
+@layer base {
+  body {
+    /* Pila tipográfica de Apple: SF en iOS/macOS, Roboto/system-ui al caer */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+      "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  /* Material de navegación (tab bar / cabecera): vidrio pesado tipo iOS */
+  .glass-nav {
+    background: var(--ios-glass-strong);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    backdrop-filter: blur(24px) saturate(1.8);
+  }
+  /* Material de superficie (hojas, tarjetas flotantes) */
+  .glass-card {
+    background: var(--ios-glass);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    backdrop-filter: blur(20px) saturate(1.6);
+    border: 1px solid var(--ios-hairline);
+    box-shadow: var(--ios-shadow-float);
+  }
+  .hairline-b {
+    border-bottom: 1px solid var(--ios-hairline);
+  }
+  .hairline-t {
+    border-top: 1px solid var(--ios-hairline);
+  }
+  /* Feedback táctil: escala sutil al presionar, como un botón nativo */
+  .ios-press {
+    transition: transform 0.18s var(--ios-ease-out), opacity 0.18s ease;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .ios-press:active {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  .ios-press-sm:active {
+    transform: scale(0.98);
+  }
+  /* Entrada de página: aparece suave desde abajo, curva iOS */
+  .ios-page-enter {
+    animation: ios-page-in 0.32s var(--ios-ease-out) both;
+  }
+  @keyframes ios-page-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* Hoja "Más": sube con la física de una sheet de iOS */
+  .ios-sheet-enter {
+    animation: ios-sheet-in 0.42s var(--ios-ease) both;
+  }
+  @keyframes ios-sheet-in {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .ios-fade-enter {
+    animation: ios-fade-in 0.28s ease both;
+  }
+  @keyframes ios-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+}
+
+/* En móvil, la scrollbar horizontal (tablas, kanban) se oculta como en iOS */
+@media (max-width: 767px) {
+  ::-webkit-scrollbar {
+    height: 0;
+    width: 0;
+  }
+}
+
+/* Reduced motion ya respetado arriba; las animaciones iOS también */
+@media (prefers-reduced-motion: reduce) {
+  .ios-page-enter,
+  .ios-sheet-enter,
+  .ios-fade-enter,
+  .ios-press,
+  .ios-press-sm {
+    animation: none !important;
+    transition: none !important;
+  }
+}

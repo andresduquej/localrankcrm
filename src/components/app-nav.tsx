@@ -56,83 +56,8 @@ import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { getActiveWorkspaceId, loadFromStorage } from "@/lib/local-storage";
 import { useEvents } from "@/components/use-events";
+import { NAV_CATEGORIES, ALL_NAV } from "@/lib/nav";
 
-// Navigation organized by categories (as per architecture)
-type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; badge?: boolean | string };
-type NavCategory = { label: string; items: NavItem[] };
-
-const NAV_CATEGORIES: NavCategory[] = [
-  { label: "Prospección", items: [
-    { href: "/radar", label: "Radar", icon: Bookmark },
-    { href: "/lead-finder", label: "Lead Finder B2B", icon: Users },
-    { href: "/scout", label: "Scout Scraper", icon: Search, badge: "soon" },
-    { href: "/linkedin", label: "LinkedIn", icon: Linkedin },
-    { href: "/cold-contacts", label: "Prospección", icon: Thermometer },
-    { href: "/email-finder", label: "Email Finder", icon: Mail },
-    { href: "/enrichment", label: "Enriquecimiento", icon: Database },
-    { href: "/social-outreach", label: "Social Outreach", icon: MessageSquare },
-    { href: "/social", label: "Social Engagement", icon: Heart },
-    { href: "/forms", label: "Formularios", icon: ClipboardList },
-    { href: "/import", label: "Importar", icon: Database },
-    { href: "/suppliers", label: "Proveedores", icon: Building2 },
-  ]},
-  { label: "CRM & Ventas", items: [
-    { href: "/contacts", label: "Contactos", icon: Users },
-    { href: "/companies", label: "Compañías", icon: Building2 },
-    { href: "/opportunities", label: "Oportunidades", icon: Target },
-    { href: "/pipeline", label: "Pipeline", icon: Kanban },
-    { href: "/tasks", label: "Tareas", icon: CheckSquare },
-    { href: "/calendar", label: "Calendario", icon: Calendar },
-    { href: "/focus", label: "Focus", icon: Target },
-    { href: "/proposals", label: "Propuestas", icon: FileText },
-    { href: "/cartera", label: "Cartera", icon: CreditCard },
-    { href: "/subscriptions", label: "Suscripciones", icon: CreditCard },
-  ]},
-  { label: "Conversaciones", items: [
-    { href: "/inbox", label: "Conversaciones", icon: MessageSquare, badge: true },
-    { href: "/omnichannel", label: "Omnicanal", icon: Activity },
-    { href: "/meeting-reminders", label: "Meeting Reminders", icon: Bell },
-    { href: "/templates", label: "Plantillas", icon: Send },
-    { href: "/settings/quick-replies", label: "Resp. Rápidas", icon: Send },
-    { href: "/scheduler", label: "Scheduler", icon: Clock },
-  ]},
-  { label: "Automatización & IA", items: [
-    { href: "/ai-hub", label: "IA & Automatización", icon: Bot },
-    { href: "/automations", label: "Automatizaciones", icon: Zap },
-    { href: "/sequences", label: "Secuencias", icon: GitBranch },
-    { href: "/flows", label: "Flows", icon: GitBranch },
-    { href: "/lead-routing", label: "Lead Routing", icon: GitBranch },
-    { href: "/scoring", label: "Scoring", icon: Star },
-    { href: "/ai-builder", label: "Constructor IA", icon: Bot },
-    { href: "/ai-quoter", label: "Cotizador IA", icon: FileText },
-  ]},
-  { label: "Operación", items: [
-    { href: "/projects", label: "Proyectos", icon: FolderKanban },
-    { href: "/checklists", label: "Checklists", icon: CircleCheckBig },
-    { href: "/reminders", label: "Recordatorios", icon: Clock },
-    { href: "/todo", label: "To-Do", icon: CircleCheckBig },
-    { href: "/notes", label: "Notas", icon: StickyNote },
-    { href: "/labels", label: "Etiquetas", icon: Tag },
-  ]},
-  { label: "Equipo & Espacios", items: [
-    { href: "/team", label: "Equipo", icon: UsersRound },
-    { href: "/team-chat", label: "Chat interno", icon: MessageSquare },
-    { href: "/workspaces", label: "Workspace", icon: FolderOpen },
-    { href: "/vault", label: "Bóveda", icon: Database },
-  ]},
-  { label: "Datos & Control", items: [
-    { href: "/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/files", label: "Archivos & IA", icon: FileText },
-    { href: "/ocr", label: "OCR", icon: FileText },
-    { href: "/backup", label: "Backup", icon: Database },
-    { href: "/audit", label: "Auditoría", icon: History },
-    { href: "/url-shortener", label: "Acortador URL", icon: Link2 },
-    { href: "/lab", label: "Laboratorio", icon: FlaskConical },
-  ]},
-];
-
-// Flat list for customization
-const ALL_NAV = NAV_CATEGORIES.flatMap(c => c.items);
 const DEFAULT_MAIN_HREFS = ["/dashboard", "/radar", "/lead-finder", "/cold-contacts", "/contacts", "/pipeline", "/inbox", "/tasks", "/ai-hub", "/analytics"];
 
 export function AppNav({
@@ -147,7 +72,6 @@ export function AppNav({
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [customizing, setCustomizing] = useState(false);
   const [mainHrefs, setMainHrefs] = useState<string[]>(DEFAULT_MAIN_HREFS);
@@ -191,34 +115,10 @@ export function AppNav({
     onConversationUpdated: () => void refetchUnread(),
   });
 
-  // Close mobile nav on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-
   return (
-    <>
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="fixed left-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--sidebar-bg)] text-white shadow-lg md:hidden"
-        aria-label="Abrir menú"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
-      {/* Overlay for mobile */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setMobileOpen(false)} />
-      )}
-
-      <aside className={cn(
-        "flex w-60 shrink-0 flex-col border-r bg-[var(--sidebar-bg)] px-3 pb-3.5 pt-6",
-        "fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:relative md:translate-x-0",
-        mobileOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        {/* Mobile close button */}
-        <button onClick={() => setMobileOpen(false)} className="absolute right-2 top-2 rounded p-1 text-white/60 hover:text-white md:hidden"><X className="h-5 w-5" /></button>
+    // En móvil la navegación vive en MobileShell (tab bar iOS + hoja Más);
+    // este aside es exclusivo de desktop.
+    <aside className="hidden w-60 shrink-0 flex-col border-r bg-[var(--sidebar-bg)] px-3 pb-3.5 pt-6 md:flex">
       {/* Brand white-label + theme toggle */}
       <div className="mb-6 flex items-center gap-2.5 px-3">
         <img src="/icon.svg" alt={branding.name} className="h-[32px] w-[32px] shrink-0" />
@@ -364,6 +264,5 @@ export function AppNav({
         <p className="mt-0.5 pl-5.5 text-[9px] text-white/40">Mantiene tus datos entre visitas</p>
       </div>
     </aside>
-    </>
   );
 }

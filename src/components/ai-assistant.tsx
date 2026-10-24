@@ -309,7 +309,7 @@ export function AiAssistant() {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="fixed bottom-4 right-4 z-40 flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-full bg-brand text-white shadow-lg hover:scale-105 transition-transform" title="Asistente IA">
+      <button onClick={() => setOpen(true)} className="fixed bottom-[calc(84px+var(--safe-bottom))] right-4 z-40 flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white shadow-lg transition-transform hover:scale-105 md:bottom-4 md:h-12 md:w-12" title="Asistente IA">
         <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
       </button>
     );
