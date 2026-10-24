@@ -7,6 +7,7 @@ import { BlurWrapper } from "@/components/blur-wrapper";
 import { GlobalSearch } from "@/components/global-search";
 import { UpdateBanner } from "@/components/update-banner";
 import { UndoToast } from "@/components/undo-toast";
+import PushRegister from "@/components/push-register";
 
 export default function AppLayout({
   children,
@@ -21,6 +22,7 @@ export default function AppLayout({
       <PageHelp />
       <AiAssistant />
       <UndoToast />
+      <PushRegister />
     </div>
   );
 }

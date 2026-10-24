@@ -23,6 +23,9 @@ export const GET = withAuth(async (session) => {
       tokenLast4: tokenLast4(conn),
       chatLinked: Boolean(conn.chatId),
       chatName: conn.chatName,
+      // Secreto del webhook: lo usa el dueño para armar la URL del ping
+      // externo cada hora (cron-job.org → /api/cron/reminders?org=...).
+      webhookSecret: conn.webhookSecret,
     },
   });
 });

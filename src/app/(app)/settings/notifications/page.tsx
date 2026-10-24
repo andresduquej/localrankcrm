@@ -4,6 +4,8 @@ import {
   Bell,
   BellRing,
   CheckCircle2,
+  Copy,
+  Hourglass,
   Monitor,
   Send,
   Smartphone,
@@ -17,6 +19,11 @@ import {
   DEFAULT_NOTIFY_PREFS,
   type NotifyPrefs,
 } from "@/lib/notifications";
+import {
+  enablePushOnThisDevice,
+  pushDeviceStatus,
+  type PushDeviceStatus,
+} from "@/components/push-register";
 
 const PERMISSION_LABELS: Record<NotificationPermission, string> = {
   granted: "Concedido",
@@ -168,6 +175,145 @@ export default function NotificationsPage() {
         En iPhone, instala la app (Compartir → Agregar a pantalla de inicio) y requiere iOS 16.4+ para
         poder conceder permisos de notificación.
       </p>
+
+      <PushCard />
+      <PingCard />
+    </div>
+  );
+}
+
+/** Card: push nativo al dispositivo (iPhone/Android/navegador). */
+function PushCard() {
+  const [estado, setEstado] = useState<PushDeviceStatus | null>(null);
+  const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  useEffect(() => {
+    pushDeviceStatus().then(setEstado).catch(() => setEstado(null));
+  }, []);
+
+  async function activar() {
+    setOcupado(true);
+    const res = await enablePushOnThisDevice().catch(() => ({
+      ok: false,
+      message: "No se pudo activar el push en este dispositivo",
+    }));
+    setOcupado(false);
+    setFeedback({ ok: res.ok, msg: res.message });
+    setTimeout(() => setFeedback(null), 5000);
+    pushDeviceStatus().then(setEstado).catch(() => {});
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900 dark:border-gray-700">
+      <h4 className="flex items-center gap-2 font-medium">
+        <Smartphone className="h-4 w-4" />
+        Notificaciones push (iPhone/Android)
+      </h4>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Avisos de citas y tareas vencidas directo en la pantalla de bloqueo, aunque no tengas
+        la app abierta. Requiere la app instalada (Compartir → Agregar a pantalla de inicio)
+        e iOS 16.4+.
+      </p>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={activar}
+          disabled={ocupado || estado?.supported === false}
+          className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {ocupado ? "Activando…" : "Activar push en este dispositivo"}
+        </button>
+        {feedback && (
+          <span className={`text-xs font-medium ${feedback.ok ? "text-green-600" : "text-amber-600"}`}>
+            {feedback.msg}
+          </span>
+        )}
+        {!feedback && estado?.subscribed && (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Este dispositivo ya recibe push
+          </span>
+        )}
+      </div>
+      {estado?.supported === false && (
+        <p className="mt-3 text-xs text-amber-600">
+          Este navegador no soporta push web. En iPhone: abre la app instalada (no Safari
+          normal) para activarlo.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Card: ping externo cada hora para el modo fastidio. */
+function PingCard() {
+  const [pingUrl, setPingUrl] = useState("");
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/telegram")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const secret = d?.connection?.webhookSecret;
+        if (secret && typeof window !== "undefined") {
+          setPingUrl(`${window.location.origin}/api/cron/reminders?org=${secret}&digest=1`);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(pingUrl);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    } catch {
+      // clipboard bloqueado: el usuario puede copiar a mano
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900 dark:border-gray-700">
+      <h4 className="flex items-center gap-2 font-medium">
+        <Hourglass className="h-4 w-4" />
+        Fastidio cada hora (ping externo)
+      </h4>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        El plan gratis de Vercel despierta el bot 1 vez al día. Para que te fastidie las tareas
+        cada hora, crea un cron gratis en cron-job.org que pegue esta URL:
+      </p>
+      {pingUrl ? (
+        <>
+          <code className="mt-3 block max-h-20 overflow-y-auto break-all rounded-lg bg-muted px-3 py-2 text-[11px]">
+            {pingUrl}
+          </code>
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={copiar}
+              className="flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {copiado ? "¡Copiada!" : "Copiar URL"}
+            </button>
+            <a
+              href="https://cron-job.org/en/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-brand hover:underline"
+            >
+              Abrir cron-job.org →
+            </a>
+          </div>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+            <li>Crea cuenta gratis en cron-job.org y dale “Create cronjob”.</li>
+            <li>Pega la URL copiada en el campo “URL”.</li>
+            <li>En Schedule elige “Every 1 hour” y guarda. Listo.</li>
+          </ol>
+        </>
+      ) : (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Conecta primero el bot de Telegram (Ajustes → Telegram) para generar tu URL de ping.
+        </p>
+      )}
     </div>
   );
 }

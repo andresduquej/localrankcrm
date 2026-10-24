@@ -84,3 +84,9 @@ CREATE POLICY "Deny all for rate_limit_hit" ON "rate_limit_hit" FOR ALL USING (f
 -- ============ IA SETTINGS (agregada 2026-10) ============
 ALTER TABLE "ai_settings" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for ai_settings" ON "ai_settings" FOR ALL USING (false);
+
+-- ============ VAULT / PUSH (agregadas 2026-10 tanda 2) ============
+ALTER TABLE "vault_item" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for vault_item" ON "vault_item" FOR ALL USING (false);
+ALTER TABLE "push_subscription" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for push_subscription" ON "push_subscription" FOR ALL USING (false);

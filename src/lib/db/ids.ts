@@ -23,6 +23,8 @@ const prefixes = {
   appointment: "apt",
   rateLimitHit: "rl",
   aiSettings: "ais",
+  vaultItem: "vlt",
+  pushSubscription: "pus",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

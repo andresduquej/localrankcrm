@@ -516,6 +516,54 @@ export const aiSettings = pgTable(
   (t) => [index("ai_settings_org_idx").on(t.organizationId)]
 );
 
+/**
+ * Bóveda de recursos: repos de GitHub, páginas y herramientas guardados con
+ * "para qué sirve" y etiquetas. githubMeta guarda lo que responde la API de
+ * GitHub (stars, pushedAt, release) para avisar actualizaciones.
+ */
+export const vaultItem = pgTable(
+  "vault_item",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type").notNull().default("pagina"), // repo | pagina | herramienta
+    title: text("title").notNull(),
+    url: text("url").notNull().default(""),
+    notes: text("notes").notNull().default(""), // para qué sirve
+    tags: jsonb("tags").notNull().default([]),
+    githubMeta: jsonb("github_meta"),
+    archived: boolean("archived").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("vault_item_org_idx").on(t.organizationId),
+    index("vault_item_org_type_idx").on(t.organizationId, t.type),
+  ]
+);
+
+/** Suscripciones Web Push (iPhone/Android/navegador) por organización. */
+export const pushSubscription = pgTable(
+  "push_subscription",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .references(() => user.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull().unique(),
+    keysP256dh: text("keys_p256dh").notNull(),
+    keysAuth: text("keys_auth").notNull(),
+    userAgent: text("user_agent").notNull().default(""),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("push_subscription_org_idx").on(t.organizationId)]
+);
+
 export const crmNote = pgTable(
   "crm_note",
   {
