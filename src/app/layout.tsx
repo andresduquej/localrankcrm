@@ -37,9 +37,15 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "LocalRank CRM",
       description: "Plataforma de ventas y prospección inteligente con IA, omnicanal y pipeline visual.",
     },
+    manifest: "/manifest.webmanifest",
+    themeColor: "#0a6cff",
     icons: {
-      icon: "/favicon.svg",
-      apple: "/icon.svg",
+      icon: [
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
   };
 }
