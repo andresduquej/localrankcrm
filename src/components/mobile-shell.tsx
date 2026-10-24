@@ -56,6 +56,10 @@ export function MobileShell({ userName, role }: { userName: string; role: string
 
   useEffect(() => {
     void refetchUnread();
+    // Apariencia personal (acento + esquinas) guardada en este navegador
+    import("@/lib/appearance").then(({ loadAppearance, applyAppearance }) => {
+      applyAppearance(loadAppearance());
+    });
   }, []);
 
   useEvents({

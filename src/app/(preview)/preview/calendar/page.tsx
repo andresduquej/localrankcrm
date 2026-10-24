@@ -121,9 +121,9 @@ export default function CalendarPage() {
   function getCalColor(calId: string) { return calendars.find((c) => c.id === calId)?.color || "#999"; }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col md:flex-row">
       {/* Sidebar */}
-      <div className="w-64 shrink-0 border-r overflow-y-auto p-4 space-y-4">
+      <div className="order-2 w-full shrink-0 space-y-4 overflow-y-auto border-t p-4 md:order-1 md:max-h-full md:w-64 md:border-r md:border-t-0">
         <button onClick={() => { setShowNewAppt(true); setApptForm({ ...apptForm, date: selectedDate || today || "", calendarId: calendars[0]?.id || "" }); }} className="flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-hover transition-colors">
           <Plus className="h-4 w-4" />Nueva cita
         </button>
@@ -190,21 +190,21 @@ export default function CalendarPage() {
       </div>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="order-1 flex min-h-0 flex-1 flex-col overflow-hidden md:order-2">
         {/* Nav bar */}
         <div className="flex items-center justify-between border-b px-4 md:px-6 py-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="rounded p-1 hover:bg-gray-100"><ChevronLeft className="h-5 w-5" /></button>
-            <h2 className="text-sm md:text-lg font-semibold w-36 md:w-44 text-center">{MONTHS[currentMonth]} {currentYear}</h2>
-            <button onClick={nextMonth} className="rounded p-1 hover:bg-gray-100"><ChevronRight className="h-5 w-5" /></button>
+            <button onClick={prevMonth} aria-label="Mes anterior" className="rounded-full p-1.5 transition-transform hover:bg-gray-100 active:scale-95"><ChevronLeft className="h-5 w-5" /></button>
+            <h2 className="w-36 text-center text-lg font-bold tracking-tight md:w-44">{MONTHS[currentMonth]} {currentYear}</h2>
+            <button onClick={nextMonth} aria-label="Mes siguiente" className="rounded-full p-1.5 transition-transform hover:bg-gray-100 active:scale-95"><ChevronRight className="h-5 w-5" /></button>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-md border overflow-hidden">
-              <button onClick={() => setCalView("month")} className={`px-3 py-1.5 text-xs font-medium ${calView === "month" ? "bg-brand text-white" : "hover:bg-gray-50"}`}>Mes</button>
-              <button onClick={() => setCalView("week")} className={`px-3 py-1.5 text-xs font-medium ${calView === "week" ? "bg-brand text-white" : "hover:bg-gray-50"}`}>Semana</button>
-              <button onClick={() => setCalView("day")} className={`px-3 py-1.5 text-xs font-medium ${calView === "day" ? "bg-brand text-white" : "hover:bg-gray-50"}`}>Día</button>
+            <div className="flex rounded-[9px] bg-muted p-0.5">
+              <button onClick={() => setCalView("month")} className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition-all ${calView === "month" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Mes</button>
+              <button onClick={() => setCalView("week")} className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition-all ${calView === "week" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Semana</button>
+              <button onClick={() => setCalView("day")} className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition-all ${calView === "day" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Día</button>
             </div>
-            <button onClick={() => { setCurrentYear(2026); setCurrentMonth(6); setSelectedDate(today ?? null); }} className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-gray-50">Hoy</button>
+            <button onClick={() => { setCurrentYear(2026); setCurrentMonth(6); setSelectedDate(today ?? null); }} className="rounded-full bg-muted px-3.5 py-1.5 text-xs font-semibold transition-transform active:scale-95">Hoy</button>
           </div>
         </div>
 
@@ -212,14 +212,14 @@ export default function CalendarPage() {
         <div className="flex-1 overflow-y-auto overflow-x-auto p-4">
           {/* MONTH VIEW */}
           {calView === "month" && (
-          <div className="grid grid-cols-7 gap-px bg-gray-200 rounded-lg overflow-hidden border min-w-[500px]">
+          <div className="grid min-w-0 grid-cols-7 gap-px overflow-hidden rounded-2xl border bg-gray-200">
             {/* Day headers */}
             {DAYS.map((d) => (
               <div key={d} className="bg-gray-50 py-2 text-center text-xs font-medium text-muted-foreground">{d}</div>
             ))}
             {/* Empty cells before first day */}
             {Array.from({ length: firstDay }).map((_, i) => (
-              <div key={`e${i}`} className="bg-white min-h-[80px] p-1" />
+              <div key={`e${i}`} className="min-h-[56px] bg-white p-1 md:min-h-[80px]" />
             ))}
             {/* Days */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -229,15 +229,20 @@ export default function CalendarPage() {
               const isToday = dateStr === today;
               const isSelected = dateStr === selectedDate;
               return (
-                <div key={day} onClick={() => setSelectedDate(dateStr)} className={`bg-white min-h-[80px] p-1 cursor-pointer transition-colors hover:bg-gray-50 ${isSelected ? "ring-2 ring-brand ring-inset" : ""}`}>
-                  <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${isToday ? "bg-brand text-white" : ""}`}>{day}</span>
+                <div key={day} onClick={() => setSelectedDate(dateStr)} className={`min-h-[56px] cursor-pointer bg-white p-1 transition-colors hover:bg-gray-50 md:min-h-[80px] ${isSelected ? "ring-2 ring-brand ring-inset" : ""}`}>
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${isToday ? "bg-brand text-white" : isSelected ? "bg-muted" : ""}`}>{day}</span>
                   <div className="mt-0.5 space-y-0.5">
+                    <div className="mt-1 flex justify-center gap-[3px] md:hidden">
+                      {dayAppts.slice(0, 3).map((a) => (
+                        <span key={a.id} className={`h-[6px] w-[6px] rounded-full ${a.done ? "opacity-40" : ""}`} style={{ backgroundColor: getCalColor(a.calendarId) }} />
+                      ))}
+                    </div>
                     {dayAppts.slice(0, 3).map((a) => (
-                      <div key={a.id} className={`truncate rounded px-1 py-0.5 text-[10px] leading-tight ${a.done ? "line-through opacity-50" : ""}`} style={{ backgroundColor: `${getCalColor(a.calendarId)}20`, color: getCalColor(a.calendarId) }}>
+                      <div key={a.id} className={`hidden truncate rounded px-1 py-0.5 text-[10px] leading-tight md:block ${a.done ? "line-through opacity-50" : ""}`} style={{ backgroundColor: `${getCalColor(a.calendarId)}20`, color: getCalColor(a.calendarId) }}>
                         {a.time && <span className="font-medium">{a.time} </span>}{a.title}
                       </div>
                     ))}
-                    {dayAppts.length > 3 && <span className="text-[10px] text-muted-foreground px-1">+{dayAppts.length - 3} más</span>}
+                    {dayAppts.length > 3 && <span className="hidden px-1 text-[10px] text-muted-foreground md:block">+{dayAppts.length - 3} más</span>}
                   </div>
                 </div>
               );

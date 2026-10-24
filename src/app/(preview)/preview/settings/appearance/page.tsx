@@ -1,7 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { EyeOff, Globe, Moon, Shield, Sun } from "lucide-react";
+import { EyeOff, Globe, Moon, Palette, RotateCcw, Shield, Sun } from "lucide-react";
 import { loadFromStorage, saveToStorage } from "@/lib/local-storage";
+import {
+  DEFAULT_APPEARANCE,
+  applyAppearance,
+  loadAppearance,
+  saveAppearance,
+  type Appearance,
+} from "@/lib/appearance";
 
 type AppearanceConfig = { theme: "light" | "dark" | "system"; language: string };
 const DEFAULT: AppearanceConfig = { theme: "light", language: "es" };
@@ -18,12 +25,22 @@ const LANGUAGES = [
 export default function AppearancePage() {
   const [config, setConfig] = useState<AppearanceConfig>(DEFAULT);
   const [saved, setSaved] = useState(false);
+  const [ap, setAp] = useState<Appearance>(DEFAULT_APPEARANCE);
 
   useEffect(() => {
     const stored = loadFromStorage("appearance_config", DEFAULT);
     setConfig(stored);
     applyTheme(stored.theme);
+    const loaded = loadAppearance();
+    setAp(loaded);
+    applyAppearance(loaded);
   }, []);
+
+  function updateLook(next: Appearance) {
+    setAp(next);
+    applyAppearance(next);
+    saveAppearance(next);
+  }
 
   function applyTheme(theme: AppearanceConfig["theme"]) {
     if (typeof document === "undefined") return;
@@ -92,6 +109,67 @@ export default function AppearancePage() {
             <span className="mx-auto block text-sm mb-1">💻</span>
             <p className="text-xs font-medium">Sistema</p>
           </button>
+        </div>
+      </div>
+
+      {/* Color de acento */}
+      <div className="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900 dark:border-gray-700">
+        <div className="mb-4 flex items-center justify-between">
+          <h4 className="flex items-center gap-2 font-medium"><Palette className="h-4 w-4" />Color de acento</h4>
+          {ap.accent && (
+            <button onClick={() => updateLook({ ...ap, accent: null })} className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+              <RotateCcw className="h-3 w-3" />Usar el de la marca
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { name: "De la marca", accent: null as string | null },
+            { name: "Azul iOS", accent: "#0a6cff" },
+            { name: "Índigo", accent: "#4338ca" },
+            { name: "Teal", accent: "#0d7d8c" },
+            { name: "Verde", accent: "#1d6b4f" },
+            { name: "Naranja", accent: "#d95f18" },
+            { name: "Coral", accent: "#d64570" },
+            { name: "Grafito", accent: "#3f4650" },
+          ].map((p) => {
+            const active = ap.accent === p.accent;
+            return (
+              <button key={p.name} onClick={() => updateLook({ ...ap, accent: p.accent })} className={`flex items-center gap-2 rounded-xl border p-2.5 text-left text-[13px] font-semibold transition-all active:scale-[0.98] ${active ? "border-brand bg-brand-tint" : "hover:border-gray-300"}`}>
+                <span className="h-6 w-6 shrink-0 rounded-full border border-black/10" style={{ background: p.accent ?? "linear-gradient(135deg, var(--accent), var(--accent-hover))" }} />
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+        <label className="mt-3 flex items-center gap-3 rounded-xl bg-muted/50 p-2.5">
+          <input type="color" value={ap.accent ?? "#0a6cff"} onChange={(e) => updateLook({ ...ap, accent: e.target.value })} className="h-9 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0" aria-label="Color personalizado" />
+          <span className="text-[13px] font-medium">Color personalizado</span>
+          <code className="ml-auto text-xs text-muted-foreground">{ap.accent ?? "— usa la marca —"}</code>
+        </label>
+        <p className="mt-2 text-[11px] text-muted-foreground">Preferencia personal de este navegador. El color oficial de la organización se define en <strong>Configuración → Marca</strong>.</p>
+      </div>
+
+      {/* Esquinas */}
+      <div className="rounded-2xl border bg-white p-5 shadow-sm dark:bg-gray-900 dark:border-gray-700">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h4 className="font-medium">Esquinas</h4>
+            <p className="text-xs text-muted-foreground">De discretas a súper redondas (estilo iPhone)</p>
+          </div>
+          <code className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{ap.radius}px</code>
+        </div>
+        <input type="range" min={6} max={28} value={ap.radius} onChange={(e) => updateLook({ ...ap, radius: +e.target.value })} className="w-full" style={{ accentColor: "var(--accent)" }} />
+        <div className="mt-2 flex gap-2">
+          {[10, 16, 22, 28].map((r) => (
+            <button key={r} onClick={() => updateLook({ ...ap, radius: r })} className={`flex-1 border py-2 text-[11px] font-semibold transition-all ${ap.radius === r ? "border-brand bg-brand-tint" : "hover:border-gray-300"}`} style={{ borderRadius: `${Math.min(r, 18)}px` }}>
+              {r === 10 ? "Discretas" : r === 16 ? "Medias" : r === 22 ? "iOS" : "Máximas"}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+          <span className="bg-brand px-4 py-2 text-xs font-bold text-white" style={{ borderRadius: `${Math.max(6, Math.round(ap.radius * 0.45))}px` }}>Botón</span>
+          <span className="flex-1 border bg-white p-3 text-xs dark:bg-gray-800" style={{ borderRadius: `${ap.radius}px` }}>Tarjeta de ejemplo con tus esquinas</span>
         </div>
       </div>
 

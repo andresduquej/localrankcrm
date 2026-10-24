@@ -234,7 +234,7 @@ export default function ContactsPreviewPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover transition-colors">
+            <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:bg-brand-hover active:scale-95">
               <Plus className="h-4 w-4" />Nuevo
             </button>
           </div>
@@ -242,10 +242,10 @@ export default function ContactsPreviewPage() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input placeholder="Buscar..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-48 rounded-md border bg-white py-2 pl-8 pr-3 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
+            <input placeholder="Buscar..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-full rounded-[10px] bg-muted py-2 pl-9 pr-3 text-[15px] outline-none placeholder:text-muted-foreground sm:w-56" />
           </div>
           {allTags.length > 0 && (
-            <select value={filterTag} onChange={(e) => { setFilterTag(e.target.value); setPage(1); }} className="rounded-md border bg-white px-2 py-2 text-xs focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand">
+            <select value={filterTag} onChange={(e) => { setFilterTag(e.target.value); setPage(1); }} className="rounded-[10px] bg-muted px-3 py-2.5 text-sm outline-none">
               <option value="">Todas las etiquetas</option>
               {allTags.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -260,7 +260,7 @@ export default function ContactsPreviewPage() {
         </div>
       </header>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {/* Bulk action bar when archived view with selections */}
         {showArchived && (
           <div className="mb-4 flex items-center gap-3 rounded-lg border bg-blue-50 px-4 py-2">
@@ -282,7 +282,7 @@ export default function ContactsPreviewPage() {
         )}
 
         {showForm && (
-          <div className="mb-6 rounded-lg border bg-white p-5">
+          <div className="mb-6 rounded-2xl border bg-white p-5 shadow-sm">
             <h3 className="mb-4 font-semibold">Agregar contacto</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nombre *" className="rounded-md border px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
@@ -332,8 +332,8 @@ export default function ContactsPreviewPage() {
             )}
             <button onClick={() => setFormExtraFields([...formExtraFields, { label: "", value: "" }])} className="mt-3 text-sm text-brand hover:underline font-medium">+ Agregar campo personalizado</button>
             <div className="mt-4 flex gap-2">
-              <button onClick={handleAdd} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover">Guardar</button>
-              <button onClick={() => setShowForm(false)} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-50">Cancelar</button>
+              <button onClick={handleAdd} className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm transition-transform active:scale-95">Guardar</button>
+              <button onClick={() => setShowForm(false)} className="rounded-full border px-5 py-2 text-sm font-medium hover:bg-gray-50">Cancelar</button>
             </div>
           </div>
         )}
@@ -349,7 +349,7 @@ export default function ContactsPreviewPage() {
               const isExpanded = expanded === contact.id;
               const pendingRem = contact.reminders.filter((r) => !r.done).length;
               return (
-                <div key={contact.id} className="rounded-lg border bg-white overflow-hidden">
+                <div key={contact.id} className="overflow-hidden rounded-2xl border bg-white shadow-sm">
                   {/* Row */}
                   <div className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50" onClick={() => setExpanded(isExpanded ? null : contact.id)}>
                     {showArchived && (
