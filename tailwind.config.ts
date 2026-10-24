@@ -7,6 +7,7 @@ import animate from "tailwindcss-animate";
  * la escala `brand-*` expone el acento white-label.
  */
 const config: Config = {
+  darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
