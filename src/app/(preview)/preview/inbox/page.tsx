@@ -342,10 +342,10 @@ export default function InboxPreviewPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[15px] font-semibold">{convo.contactName}</span>
+                          <span className="text-[15px] font-semibold leading-tight line-clamp-2 md:line-clamp-1">{convo.contactName}</span>
                           {convo.unread > 0 && <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{convo.unread}</span>}
                         </div>
-                        <p className="truncate text-[13px] text-muted-foreground">{convo.lastMessage || "Sin mensajes"}</p>
+                        <p className="text-[13px] leading-snug text-muted-foreground line-clamp-2 md:line-clamp-1">{convo.lastMessage || "Sin mensajes"}</p>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); deleteConversation(convo.id); }} className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-red-500">
                         <Trash2 className="h-3.5 w-3.5" />
@@ -378,7 +378,7 @@ export default function InboxPreviewPage() {
                 {(() => { const I = CHANNEL_ICONS[activeConvo.channel] || MessageSquare; return <I className="h-[18px] w-[18px]" />; })()}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold leading-tight">{activeConvo.contactName}</p>
+                <p className="text-[15px] font-semibold leading-tight">{activeConvo.contactName}</p>
                 <p className="truncate text-xs text-muted-foreground">{CHANNEL_LABELS[activeConvo.channel] || activeConvo.channel}</p>
               </div>
             </div>

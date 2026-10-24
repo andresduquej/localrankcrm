@@ -175,7 +175,7 @@ export default function DashboardPage() {
                         <span className="text-[10px] font-semibold uppercase">{f.mesCorto}</span>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <b className="block truncate text-sm font-semibold">{cita.title}</b>
+                        <b className="block text-sm font-semibold leading-snug line-clamp-2 md:line-clamp-none">{cita.title}</b>
                         <small className="text-xs text-muted-foreground">
                           {f.hora}
                           {cita.notes ? ` · ${cita.notes}` : ""}
