@@ -62,10 +62,16 @@ const config: Config = {
         success: "var(--success)",
         warning: "var(--warning)",
       },
+      // Esquinas iOS: toda la escala rounded-* sigue las variables del tema
+      // (globals.css), así el redondeo se ajusta en un solo lugar.
       borderRadius: {
         sm: "var(--radius-sm)",
-        md: "var(--radius)",
+        DEFAULT: "var(--radius-md)",
+        md: "var(--radius-md)",
         lg: "var(--radius-lg)",
+        xl: "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
+        "3xl": "var(--radius-3xl)",
       },
       boxShadow: {
         sm: "var(--shadow-sm)",

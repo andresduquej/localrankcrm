@@ -41,7 +41,7 @@ describe("white-label: normalización", () => {
   });
 
   it("acento inválido → default", () => {
-    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#00288e");
+    expect(normalizeBranding({ accent: "azul" }).accent).toBe("#0a6cff");
     expect(normalizeBranding({ accent: "#3F6B66" }).accent).toBe("#3f6b66");
   });
 });

@@ -17,10 +17,14 @@ export type Branding = {
   accent: string; // hex del acento base elegido
 };
 
-export const DEFAULT_BRANDING: Branding = { name: "LocalRank", accent: "#00288e" };
+export const DEFAULT_BRANDING: Branding = { name: "LocalRank", accent: "#0a6cff" };
 
 /** Presets del handoff (valores exactos). */
 export const ACCENT_PRESETS: Record<string, { label: string; set: AccentSet }> = {
+  "#0a6cff": {
+    label: "Azul iOS",
+    set: { accent: "#0a6cff", hover: "#0856cc", soft: "#d3e5ff", tint: "#eef5ff", text: "#053680" },
+  },
   "#00288e": {
     label: "Azul Enterprise",
     set: { accent: "#00288e", hover: "#001d6b", soft: "#dde1ff", tint: "#f3f5ff", text: "#001453" },

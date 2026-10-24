@@ -26,30 +26,34 @@
     --bubble-out: #dde1ff;
     --bubble-out-text: #001453;
 
-    /* Acento (Enterprise blue; white-label lo sobreescribe) */
-    --accent: #00288e;
-    --accent-hover: #001d6b;
-    --accent-soft: #dde1ff;
-    --accent-tint: #f3f5ff;
-    --accent-text: #001453;
+    /* Acento (Azul iOS; white-label lo sobreescribe) */
+    --accent: #0a6cff;
+    --accent-hover: #0856cc;
+    --accent-soft: #d3e5ff;
+    --accent-tint: #eef5ff;
+    --accent-text: #053680;
     --bg-active: var(--accent-tint);
 
-    /* Enterprise sidebar */
-    --sidebar-bg: #00288e;
+    /* Sidebar */
+    --sidebar-bg: #0a6cff;
     --sidebar-text: #ffffff;
-    --sidebar-hover: #1e40af;
-    --sidebar-active: #1e40af;
-    --sidebar-active-text: #a8b8ff;
+    --sidebar-hover: #0856cc;
+    --sidebar-active: #0856cc;
+    --sidebar-active-text: #cfe2ff;
 
     /* Estado */
     --success: #16a34a;
     --warning: #d97706;
     --danger: #dc2626;
 
-    /* Radios y sombras */
-    --radius-sm: 7px;
-    --radius: 10px;
+    /* Radios y sombras — escala iOS (esquinas generosas) */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius: var(--radius-md);
     --radius-lg: 14px;
+    --radius-xl: 18px;
+    --radius-2xl: 22px;
+    --radius-3xl: 28px;
     --shadow-sm: 0 1px 2px rgba(20, 20, 30, 0.05);
     --shadow-md: 0 6px 20px -6px rgba(20, 20, 35, 0.12);
     --shadow-pop: 0 12px 32px -8px rgba(20, 20, 35, 0.22);
