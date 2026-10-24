@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, Bot, Facebook, FileText, Instagram, Link2, Linkedin, Mail, MessageSquare, Paperclip, Phone, Plus, Send, Settings, Trash2, Wifi, WifiOff, X } from "lucide-react";
+import { Bell, Bot, ChevronLeft, Facebook, FileText, Instagram, Link2, Linkedin, Mail, MessageSquare, Paperclip, Phone, Plus, Send, Settings, Trash2, Wifi, WifiOff, X } from "lucide-react";
 import { loadFromStorage, saveToStorage, generateId } from "@/lib/local-storage";
 
 type Attachment = { id: string; name: string; size: string; type: string };
@@ -249,11 +249,11 @@ export default function InboxPreviewPage() {
   }
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="flex w-80 shrink-0 flex-col border-r">
+    <div className="flex h-full bg-[var(--chat-bg)]">
+      {/* Lista de chats: en móvil a pantalla completa; con chat abierto se oculta */}
+      <div className={`flex w-full shrink-0 flex-col border-r bg-white md:w-80 ${active ? "hidden md:flex" : "flex"}`}>
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="font-semibold text-sm">Bandeja</h2>
+          <h2 className="text-[17px] font-bold tracking-tight">Chats</h2>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowReminders(!showReminders)} className={`relative rounded p-1.5 ${showReminders ? "bg-amber-100 text-amber-700" : "hover:bg-gray-100 text-muted-foreground"}`} title="Recordatorios">
               <Bell className="h-4 w-4" />
@@ -322,7 +322,7 @@ export default function InboxPreviewPage() {
 
         {/* Conversation list */}
         <div className="border-b px-3 py-2">
-          <input value={inboxSearch} onChange={(e) => { setInboxSearch(e.target.value); setVisibleCount(20); }} placeholder="Buscar conversación..." className="w-full rounded border px-2 py-1.5 text-xs focus:border-brand focus:outline-none" />
+          <input value={inboxSearch} onChange={(e) => { setInboxSearch(e.target.value); setVisibleCount(20); }} placeholder="Buscar" className="w-full rounded-[10px] bg-muted px-3 py-2 text-[13px] outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/30" />
         </div>
         <div className="flex-1 overflow-y-auto">
           {(() => {
@@ -336,16 +336,16 @@ export default function InboxPreviewPage() {
                   const Icon = CHANNEL_ICONS[convo.channel] || MessageSquare;
                   const color = CHANNEL_COLORS[convo.channel] || "text-gray-600 bg-gray-50";
                   return (
-                    <div key={convo.id} onClick={() => { setActive(convo.id); markRead(convo.id); }} className={`group flex cursor-pointer items-center gap-3 border-b px-3 py-3 transition-colors ${active === convo.id ? "bg-brand-tint" : "hover:bg-gray-50"}`}>
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${color}`}>
-                        <Icon className="h-4 w-4" />
+                    <div key={convo.id} onClick={() => { setActive(convo.id); markRead(convo.id); }} className={`group flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors active:bg-black/5 ${active === convo.id ? "bg-brand-tint" : "hover:bg-gray-50"}`}>
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm ${color}`}>
+                        <Icon className="h-5 w-5" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium truncate">{convo.contactName}</span>
-                          {convo.unread > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-brand px-1 text-xs font-bold text-white">{convo.unread}</span>}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[15px] font-semibold">{convo.contactName}</span>
+                          {convo.unread > 0 && <span className="flex h-[22px] min-w-[22px] shrink-0 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-bold text-white">{convo.unread}</span>}
                         </div>
-                        <p className="truncate text-xs text-muted-foreground">{convo.lastMessage || "Sin mensajes"}</p>
+                        <p className="truncate text-[13px] text-muted-foreground">{convo.lastMessage || "Sin mensajes"}</p>
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); deleteConversation(convo.id); }} className="opacity-0 group-hover:opacity-100 rounded p-1 text-muted-foreground hover:text-red-500">
                         <Trash2 className="h-3.5 w-3.5" />
@@ -367,16 +367,19 @@ export default function InboxPreviewPage() {
 
       {/* Chat area */}
       {activeConvo ? (
-        <div className="flex flex-1 flex-col">
+        <div className={`flex flex-1 flex-col ${active ? "flex" : "hidden md:flex"}`}>
           {/* Header */}
-          <div className="flex items-center justify-between border-b px-5 py-3">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full ${CHANNEL_COLORS[activeConvo.channel]}`}>
-                {(() => { const I = CHANNEL_ICONS[activeConvo.channel] || MessageSquare; return <I className="h-4 w-4" />; })()}
+          <div className="flex items-center justify-between border-b bg-white/85 px-3 py-2.5 backdrop-blur-xl md:px-5 md:py-3">
+            <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
+              <button onClick={() => setActive(null)} aria-label="Volver a chats" className="-ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-brand md:hidden">
+                <ChevronLeft className="h-6 w-6" strokeWidth={2.4} />
+              </button>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full shadow-sm ${CHANNEL_COLORS[activeConvo.channel]}`}>
+                {(() => { const I = CHANNEL_ICONS[activeConvo.channel] || MessageSquare; return <I className="h-[18px] w-[18px]" />; })()}
               </div>
-              <div>
-                <p className="text-sm font-semibold">{activeConvo.contactName}</p>
-                <p className="text-xs text-muted-foreground">{activeConvo.phone} · {CHANNEL_LABELS[activeConvo.channel] || activeConvo.channel}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold leading-tight">{activeConvo.contactName}</p>
+                <p className="truncate text-xs text-muted-foreground">{CHANNEL_LABELS[activeConvo.channel] || activeConvo.channel}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -390,7 +393,7 @@ export default function InboxPreviewPage() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {activeConvo.messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.direction === "out" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[70%] rounded-lg px-3.5 py-2 text-sm ${msg.direction === "out" ? "bg-brand text-white" : "border bg-white"}`}>
+                <div className={`max-w-[78%] px-4 py-2 text-[15px] leading-snug shadow-sm ${msg.direction === "out" ? "rounded-[20px] rounded-br-md bg-brand text-white" : "rounded-[20px] rounded-bl-md bg-white text-foreground dark:bg-[#2c2c2e]"}`}>
                   <p>{msg.text}</p>
                   {msg.attachments && msg.attachments.length > 0 && (
                     <div className="mt-1.5 space-y-1">
@@ -448,27 +451,27 @@ export default function InboxPreviewPage() {
           )}
 
           {/* Input */}
-          <div className="border-t p-3">
+          <div className="hairline-t bg-white/90 p-3 backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <input type="file" ref={fileInputRef} onChange={handleFileSelect} multiple className="hidden" />
-              <button onClick={() => fileInputRef.current?.click()} className="rounded p-2 text-muted-foreground hover:bg-gray-100 hover:text-foreground" title="Adjuntar archivo">
-                <Paperclip className="h-4 w-4" />
+              <button onClick={() => fileInputRef.current?.click()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-transform hover:text-foreground active:scale-95" title="Adjuntar archivo">
+                <Paperclip className="h-[18px] w-[18px]" />
               </button>
               <input
                 value={newMsg}
                 onChange={(e) => setNewMsg(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                 placeholder="Escribe un mensaje..."
-                className="flex-1 rounded-md border bg-white px-4 py-2.5 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="h-10 min-w-0 flex-1 rounded-full bg-muted px-4 text-[15px] outline-none placeholder:text-muted-foreground"
               />
-              <button onClick={sendMessage} disabled={!newMsg.trim() && attachments.length === 0} className="rounded-md bg-brand p-2.5 text-white hover:bg-brand-hover disabled:opacity-50 transition-colors">
-                <Send className="h-4 w-4" />
+              <button onClick={sendMessage} disabled={!newMsg.trim() && attachments.length === 0} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white transition-transform active:scale-95 disabled:opacity-40" aria-label="Enviar">
+                <Send className="h-[17px] w-[17px]" />
               </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="hidden flex-1 items-center justify-center md:flex">
           <div className="text-center">
             <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/30" />
             <p className="mt-3 text-sm text-muted-foreground">Selecciona una conversación</p>
