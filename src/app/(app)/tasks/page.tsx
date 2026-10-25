@@ -230,7 +230,7 @@ export default function TasksPage() {
           <div className="space-y-2.5">
             {visibles.map((t) => {
               const f = t.dueDate ? fechaCorta(t.dueDate) : null;
-              const pri = PRIORIDAD[(t.priority as keyof typeof PRIORIDAD) ?? "medium"] ?? PRIORIDAED_FALLBACK;
+              const pri = PRIORIDAD[(t.priority as keyof typeof PRIORIDAD) ?? "medium"] ?? PRIORIDAD.medium;
               return (
                 <div
                   key={t.id}
