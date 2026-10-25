@@ -263,8 +263,8 @@ export default function CalendarPage() {
             });
             return (
               <div className="min-w-[600px]">
-                {/* Week header */}
-                <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b">
+                {/* Week header — pegajoso: al hacer scroll los días no se pierden */}
+                <div className="sticky top-0 z-10 grid grid-cols-[60px_repeat(7,1fr)] border-b bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:bg-gray-900">
                   <div className="p-1" />
                   {weekDays.map((d) => {
                     const date = new Date(d + "T12:00:00");

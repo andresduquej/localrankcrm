@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
   CloudUpload,
+  Film,
   Github,
   Globe,
   Mic,
@@ -78,6 +79,14 @@ export default function VaultPage() {
   const [dictado, setDictado] = useState(""); // texto libre del campo único
   const [entendiendo, setEntendiendo] = useState(false);
   const [grabando, setGrabando] = useState(false);
+  const [video, setVideo] = useState<null | {
+    fase: "transcribiendo" | "listo";
+    transcript?: string;
+    resumen?: { title: string; notes: string; tags: string[] };
+    repos?: { full_name: string; html_url: string; description: string; stars: number }[];
+    error?: string;
+  }>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<{ stop: () => void } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +163,90 @@ export default function VaultPage() {
       method: "DELETE",
     }).catch(() => null);
     if (res?.ok) setItems((prev) => prev.filter((x) => x.id !== it.id));
+  }
+
+  /** Video → Whisper (GROQ) → resumen IA + repos sugeridos de GitHub. */
+  async function subirVideo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setVideo({ fase: "transcribiendo" });
+    const fd = new FormData();
+    fd.append("file", file);
+    const t = await fetch("/api/vault/transcribe", { method: "POST", body: fd })
+      .then(async (r) => (r.ok ? await r.json() : { error: (await r.json().catch(() => ({}))).error?.message ?? "Falló la transcripción" }))
+      .catch(() => ({ error: "Falló la subida" }));
+    if (t.error || !t.transcript) {
+      setVideo({ fase: "listo", error: t.error ?? "No se entendió el audio" });
+      return;
+    }
+    // Resumen con la misma IA del recurso + keywords para GitHub
+    const parse = await fetch("/api/vault/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: `Resumen del siguiente video (título corto, para qué sirve, 2-3 etiquetas de temas técnicos):\n${t.transcript.slice(0, 3000)}`,
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    const resumen = parse?.resource ?? null;
+
+    // Búsqueda de repos con las etiquetas/temas
+    let repos: { full_name: string; html_url: string; description: string; stars: number }[] = [];
+    const q = resumen?.tags?.length ? resumen.tags.slice(0, 2).join(" ") : (resumen?.title ?? "").slice(0, 40);
+    if (q.trim()) {
+      const gh = await fetch(
+        `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&per_page=4`,
+        { headers: { Accept: "application/vnd.github+json", "User-Agent": "DuqueLabs-CRM" } }
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null);
+      repos = (gh?.items ?? []).map((r: { full_name: string; html_url: string; description: string | null; stargazers_count: number }) => ({
+        full_name: r.full_name,
+        html_url: r.html_url,
+        description: r.description ?? "",
+        stars: r.stargazers_count,
+      }));
+    }
+    setVideo({ fase: "listo", transcript: t.transcript, resumen, repos });
+  }
+
+  /** Guarda un repo sugerido directamente en la bóveda. */
+  async function guardarRepoSugerido(r: { full_name: string; html_url: string; description: string }) {
+    const ok = await fetch("/api/vault", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: r.full_name, url: r.html_url, notes: r.description || "Encontrado por el análisis del video", tags: video?.resumen?.tags ?? [] }),
+    })
+      .then((x) => x.ok)
+      .catch(() => false);
+    if (ok) {
+      flash(`Repo guardado: ${r.full_name} ⭐`);
+      recargar();
+    }
+  }
+
+  /** Guarda el resumen del video como recurso. */
+  async function guardarResumenVideo() {
+    if (!video?.resumen) return;
+    const ok = await fetch("/api/vault", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: video.resumen.title,
+        url: "",
+        notes: `${video.resumen.notes}\n\nTranscripción:\n${(video.transcript ?? "").slice(0, 1500)}`,
+        tags: video.resumen.tags,
+      }),
+    })
+      .then((x) => x.ok)
+      .catch(() => false);
+    if (ok) {
+      setVideo(null);
+      flash("Video guardado en tu bóveda con su transcripción 🎥");
+      recargar();
+    }
   }
 
   async function revisar(solo?: string[]) {
@@ -331,6 +424,20 @@ export default function VaultPage() {
               className="hidden"
               onChange={importarArchivo}
             />
+            <input
+              ref={videoRef}
+              type="file"
+              accept="video/*,audio/*"
+              className="hidden"
+              onChange={subirVideo}
+            />
+            <button
+              type="button"
+              onClick={() => videoRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-xl border bg-white px-3 py-2 text-xs font-semibold shadow-sm transition-transform active:scale-[0.97] md:text-sm dark:bg-gray-900"
+            >
+              <Film className="h-4 w-4" /> Video → IA
+            </button>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -351,6 +458,75 @@ export default function VaultPage() {
         {mensaje && (
           <div className="rounded-xl border border-brand/30 bg-brand-tint/40 px-3 py-2 text-xs font-medium md:text-sm">
             {mensaje}
+          </div>
+        )}
+
+        {/* Panel del video: transcripción → resumen → repos sugeridos */}
+        {video && (
+          <div className="space-y-3 rounded-2xl border border-brand/30 bg-white p-4 shadow-sm dark:bg-gray-900">
+            <div className="flex items-center justify-between">
+              <h3 className="flex items-center gap-2 font-semibold">
+                <Film className="h-4 w-4 text-brand" /> Análisis del video
+              </h3>
+              <button type="button" onClick={() => setVideo(null)} aria-label="Cerrar">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {video.fase === "transcribiendo" && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" /> Escuchando el video con Whisper…
+              </p>
+            )}
+
+            {video.error && <p className="text-sm font-medium text-[#c03a2e]">⚠️ {video.error}</p>}
+
+            {video.fase === "listo" && video.resumen && (
+              <>
+                <div className="rounded-xl bg-brand-tint/40 p-3">
+                  <b className="text-sm">{video.resumen.title}</b>
+                  <p className="mt-1 text-xs text-muted-foreground">{video.resumen.notes}</p>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    {video.resumen.tags.map((t) => (
+                      <span key={t} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-brand">#{t}</span>
+                    ))}
+                  </div>
+                </div>
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer font-semibold">Ver transcripción</summary>
+                  <p className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap">{video.transcript}</p>
+                </details>
+                {video.repos && video.repos.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold">Repos que encajan con el tema:</p>
+                    <div className="space-y-1.5">
+                      {video.repos.map((r) => (
+                        <div key={r.full_name} className="flex items-center gap-2 rounded-xl border px-3 py-2">
+                          <div className="min-w-0 flex-1">
+                            <b className="block truncate text-xs">{r.full_name}</b>
+                            <small className="block truncate text-[11px] text-muted-foreground">⭐ {r.stars} · {r.description}</small>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => guardarRepoSugerido(r)}
+                            className="shrink-0 rounded-lg bg-brand px-2.5 py-1.5 text-[11px] font-bold text-white active:scale-95"
+                          >
+                            Guardar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={guardarResumenVideo}
+                  className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white"
+                >
+                  Guardar el video en la bóveda 🎥
+                </button>
+              </>
+            )}
           </div>
         )}
 

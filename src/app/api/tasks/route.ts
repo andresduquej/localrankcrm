@@ -62,3 +62,23 @@ export const PATCH = withAuth(async (session, req: Request) => {
   }
   return Response.json({ ok: true, task: rows[0] });
 });
+
+export const DELETE = withAuth(async (session, req: Request) => {
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) {
+    return Response.json(
+      { error: { code: "invalid_params", message: "Falta ?id=" } },
+      { status: 422 }
+    );
+  }
+  const db = getDb();
+  await db
+    .delete(schema.crmTask)
+    .where(
+      and(
+        eq(schema.crmTask.id, id),
+        eq(schema.crmTask.organizationId, session.organizationId)
+      )
+    );
+  return Response.json({ ok: true });
+});
