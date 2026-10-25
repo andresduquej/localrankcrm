@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Calendar,
-  CheckSquare,
   ChevronRight,
   Database,
   Github,
   Globe,
-  MessageSquare,
-  UserCircle,
   Wrench,
 } from "lucide-react";
 
@@ -163,14 +159,26 @@ export default function DashboardPage() {
   const vencidas = tareas.filter(
     (t) => t.dueDate && !Number.isNaN(new Date(t.dueDate).getTime()) && new Date(t.dueDate).getTime() < ahora
   ).length;
+  const hoyKey = new Date(Date.now() - 5 * 3600_000).toISOString().slice(0, 10);
+  const pendientesHoy = tareas.filter((t) => t.dueDate && t.dueDate.slice(0, 10) === hoyKey).length;
+  const alDia = tareas.length > 0 ? Math.round(((tareas.length - vencidas) / tareas.length) * 100) : 100;
 
-  /** KPIs reales del día (nada quemado). */
-  const STATS = [
-    { label: "Citas hoy", value: String(citasHoy), icon: Calendar, change: citasHoy > 0 ? "en tu agenda" : "agenda libre", ok: true },
-    { label: "Tareas pendientes", value: String(tareas.length), icon: CheckSquare, change: vencidas > 0 ? `${vencidas} vencida${vencidas > 1 ? "s" : ""}` : "al día", ok: vencidas === 0 },
-    { label: "Contactos", value: nContactos === null ? "—" : String(nContactos), icon: UserCircle, change: "en tu red", ok: true },
-    { label: "Sin leer", value: sinLeer === null ? "—" : String(sinLeer), icon: MessageSquare, change: (sinLeer ?? 0) > 0 ? "te esperan" : "todo leído", ok: (sinLeer ?? 0) === 0 },
-  ];
+  /** Tareas con fecha por día, próximos 7 días (hoy incluido), hora Bogotá. */
+  const semana = useMemo(() => {
+    const dias: { label: string; n: number; esHoy: boolean }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const key = new Date(Date.now() - 5 * 3600_000 + i * 86_400_000).toISOString().slice(0, 10);
+      dias.push({
+        label: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"][
+          new Date(Date.now() + i * 86_400_000).getDay()
+        ]!,
+        n: tareas.filter((t) => t.dueDate && t.dueDate.slice(0, 10) === key).length,
+        esHoy: i === 0,
+      });
+    }
+    return dias;
+  }, [tareas]);
+  const maxSemana = Math.max(1, ...semana.map((d) => d.n));
 
   return (
     <div className="h-full overflow-y-auto p-4 md:p-6">
@@ -190,22 +198,117 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* KPIs estilo iOS: valor grande + chip verde */}
-        <div className="mb-6 grid grid-cols-2 gap-3 md:mb-8 md:grid-cols-3 md:gap-4">
-          {STATS.map((stat) => (
-            <div key={stat.label} className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
-              <div className="mb-3 inline-flex rounded-xl bg-brand-tint p-2.5 text-brand">
-                <stat.icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
+        {/* ── ANILLO DEL DÍA (firma): tu carga de un vistazo, toca y va ── */}
+        <Link
+          href={`${prefix}/tasks`}
+          className="group mb-4 block active:scale-[0.985] transition-transform md:mb-5"
+        >
+          <div
+            className="relative overflow-hidden rounded-[28px] p-5 text-white shadow-lg md:p-6"
+            style={{ background: "linear-gradient(135deg,#0a6cff 0%,#0856cc 55%,#053680 100%)" }}
+          >
+            {/* brillo glass superior */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-white/10 blur-2xl" />
+            <div className="relative flex items-center gap-5">
+              {/* Anillo: % de pendientes al día */}
+              <div className="relative h-[104px] w-[104px] shrink-0">
+                <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                  <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="12" />
+                  <circle
+                    cx="60" cy="60" r="50" fill="none"
+                    stroke={vencidas > 0 ? "#ffd60a" : "#34c759"}
+                    strokeWidth="12" strokeLinecap="round"
+                    strokeDasharray={`${(alDia / 100) * 314} 314`}
+                    className="transition-[stroke-dasharray] duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <b className="text-[30px] font-extrabold leading-none tracking-tight">{pendientesHoy}</b>
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-white/70">hoy</span>
+                </div>
               </div>
-              <p className="text-[22px] font-extrabold leading-tight tracking-tight md:text-[26px]">{stat.value}</p>
-              <p className="mt-0.5 text-xs font-medium text-muted-foreground">{stat.label}</p>
-              <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                stat.ok ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
-              }`}>
-                {stat.change}
-              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/70">Tu día</p>
+                <p className="mt-0.5 text-[17px] font-bold leading-snug">
+                  {tareas.length === 0
+                    ? "Nada pendiente — cabeza vacía 🧠"
+                    : vencidas > 0
+                      ? `${vencidas} vencida${vencidas > 1 ? "s" : ""} te está esperando 😠`
+                      : pendientesHoy > 0
+                        ? `${pendientesHoy} por hacer hoy, vas al día ✅`
+                        : `Hoy libre — ${tareas.length} para después 🌤`}
+                </p>
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold backdrop-blur">
+                    📅 {citasHoy} cita{citasHoy === 1 ? "" : "s"} hoy
+                  </span>
+                  <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold backdrop-blur">
+                    ✅ {tareas.length} pendientes
+                  </span>
+                  {vencidas > 0 && (
+                    <span className="rounded-full bg-[#ff3b30] px-2.5 py-1 text-[11px] font-bold">
+                      ⚠️ {vencidas} vencida{vencidas > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-white/60 transition-transform group-hover:translate-x-0.5" />
             </div>
+          </div>
+        </Link>
+
+        {/* ── Chips tocables: cada uno navega a su mundo ── */}
+        <div className="mb-4 grid grid-cols-3 gap-2.5 md:mb-5 md:grid-cols-4 md:gap-3">
+          {[
+            { href: "/calendar", n: citasHoy, label: "Citas hoy", emoji: "📅", tint: "bg-[#ff9f0a]/12 text-[#c25e00] dark:text-[#ffb340]" },
+            { href: "/contacts", n: nContactos, label: "Contactos", emoji: "👤", tint: "bg-[#5856d6]/12 text-[#403ed8] dark:text-[#8f8dff]" },
+            { href: "/inbox", n: sinLeer, label: "Sin leer", emoji: "💬", tint: "bg-[#30b0c7]/12 text-[#1d7f94] dark:text-[#5ed4e8]" },
+            { href: "/vault", n: boveda.length, label: "Bóveda", emoji: "🗂", tint: "bg-brand-tint text-brand" },
+          ].map((chip) => (
+            <Link
+              key={chip.href}
+              href={`${prefix}${chip.href}`}
+              className="rounded-3xl border bg-white p-3.5 shadow-sm transition-transform active:scale-[0.95] md:p-4 dark:bg-gray-900"
+            >
+              <span className={`mb-2 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[16px] ${chip.tint}`}>
+                {chip.emoji}
+              </span>
+              <b className="block text-[22px] font-extrabold leading-none tracking-tight md:text-[24px]">
+                {chip.n === null ? "—" : chip.n}
+              </b>
+              <span className="mt-1 block text-[11px] font-semibold text-muted-foreground">{chip.label}</span>
+            </Link>
           ))}
+        </div>
+
+        {/* ── Tu semana: barras reales de tareas por día ── */}
+        <div className="mb-4 rounded-[28px] border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-semibold">Tu semana</h3>
+            <span className="text-[11px] font-medium text-muted-foreground">tareas por día</span>
+          </div>
+          <div className="flex items-end justify-between gap-1.5 md:gap-2.5">
+            {semana.map((d) => (
+              <div key={d.label + d.esHoy} className="flex flex-1 flex-col items-center gap-1.5">
+                <span className={`text-[11px] font-bold ${d.esHoy ? "text-brand" : "text-muted-foreground"}`}>
+                  {d.n > 0 ? d.n : ""}
+                </span>
+                <div
+                  className={`w-full rounded-full transition-all duration-700 ${
+                    d.esHoy
+                      ? "bg-gradient-to-t from-brand to-[#4da3ff]"
+                      : d.n > 0
+                        ? "bg-brand/35"
+                        : "bg-muted h-1.5"
+                  }`}
+                  style={{ height: d.n > 0 ? `${14 + (d.n / maxSemana) * 52}px` : "6px" }}
+                />
+                <span className={`text-[10px] font-semibold ${d.esHoy ? "text-brand" : "text-muted-foreground"}`}>
+                  {d.esHoy ? "hoy" : d.label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
@@ -256,22 +359,38 @@ export default function DashboardPage() {
                   Sin tareas pendientes — crea una con <b>/tarea</b> en Telegram
                 </p>
               )}
-              {tareas.map((tarea) => (
+              {tareas.map((tarea) => {
+                const vencida =
+                  tarea.dueDate &&
+                  !Number.isNaN(new Date(tarea.dueDate).getTime()) &&
+                  new Date(tarea.dueDate).getTime() < ahora;
+                return (
                 <button
                   key={tarea.id}
                   type="button"
                   onClick={() => alternarTarea(tarea.id, true)}
-                  className="flex w-full items-center gap-3 border-b py-3 text-left last:border-0 last:pb-0"
+                  className="flex w-full items-center gap-3 border-b py-3 text-left transition-transform last:border-0 last:pb-0 active:scale-[0.98]"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-xs font-bold text-transparent">
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-all active:scale-90 ${
+                      vencida
+                        ? "border-[#ff3b30] bg-[#ff3b30]/10 text-[#ff3b30]"
+                        : "border-gray-300 text-transparent"
+                    }`}
+                  >
                     ✓
                   </span>
                   <div className="min-w-0 flex-1">
-                    <b className="block truncate text-sm font-semibold">{tarea.title}</b>
-                    <small className="text-xs text-muted-foreground">{tareaMeta(tarea)}</small>
+                    <b className={`block truncate text-sm font-semibold ${vencida ? "text-[#c03a2e]" : ""}`}>
+                      {tarea.title}
+                    </b>
+                    <small className={`text-xs ${vencida ? "font-semibold text-[#ff3b30]" : "text-muted-foreground"}`}>
+                      {vencida ? "⚠️ vencida · " : ""}{tareaMeta(tarea)}
+                    </small>
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -6,10 +6,13 @@ import {
   CloudUpload,
   Github,
   Globe,
+  Mic,
+  MicOff,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Star,
   Trash2,
   Wrench,
@@ -72,6 +75,10 @@ export default function VaultPage() {
   const [mensaje, setMensaje] = useState("");
   const [revisando, setRevisando] = useState(false);
   const [importacion, setImportacion] = useState<null | BookmarkImportado[]>(null);
+  const [dictado, setDictado] = useState(""); // texto libre del campo único
+  const [entendiendo, setEntendiendo] = useState(false);
+  const [grabando, setGrabando] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -170,6 +177,94 @@ export default function VaultPage() {
     recargar();
   }
 
+  /** Dictado por voz (Web Speech API, es-CO): suma lo oído al campo único. */
+  function alternarMic() {
+    if (grabando) {
+      recRef.current?.stop();
+      setGrabando(false);
+      return;
+    }
+    const W = window as unknown as {
+      SpeechRecognition?: new () => Record<string, unknown>;
+      webkitSpeechRecognition?: new () => Record<string, unknown>;
+    };
+    const Ctor = W.SpeechRecognition ?? W.webkitSpeechRecognition;
+    if (!Ctor) {
+      flash("Tu navegador no soporta dictado — escríbelo y la IA igual lo organiza");
+      return;
+    }
+    // Tipado mínimo del reconocimiento de voz (el repo usa window as any aquí)
+    type SR = {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+      onend: (() => void) | null;
+      onerror: (() => void) | null;
+      start: () => void;
+      stop: () => void;
+    };
+    const rec = new Ctor() as unknown as SR;
+    rec.lang = "es-CO";
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      let texto = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i]!.isFinal) texto += e.results[i]![0].transcript;
+      }
+      if (texto) setDictado((prev) => (prev ? `${prev} ${texto.trim()}` : texto.trim()));
+    };
+    rec.onend = () => setGrabando(false);
+    rec.onerror = () => setGrabando(false);
+    recRef.current = rec;
+    rec.start();
+    setGrabando(true);
+  }
+
+  /** La IA entiende el texto libre y guarda el recurso. */
+  async function entenderYGuardar() {
+    if (dictado.trim().length < 3) return;
+    setEntendiendo(true);
+    const res = await fetch("/api/vault/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: dictado }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    if (!res?.ok || !res.resource?.title) {
+      setEntendiendo(false);
+      flash("No pude entenderlo — prueba de nuevo o usa el formulario");
+      return;
+    }
+    const r = res.resource as { title: string; url: string; notes: string; tags: string[] };
+    const post = await fetch("/api/vault", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: r.title,
+        url: r.url,
+        notes: r.notes,
+        tags: r.tags ?? [],
+      }),
+    })
+      .then((x) => x.ok)
+      .catch(() => false);
+    setEntendiendo(false);
+    if (post) {
+      setDictado("");
+      flash(
+        res.source === "ai"
+          ? `Guardado ✨ «${r.title}»${r.url ? " + link" : ""}${r.tags?.length ? ` · ${r.tags.map((t) => `#${t}`).join(" ")}` : ""}`
+          : `Guardado (sin IA) «${r.title}»`
+      );
+      recargar();
+    } else {
+      flash("No se pudo guardar");
+    }
+  }
+
   async function importarArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -218,7 +313,7 @@ export default function VaultPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 md:p-6">
+    <div className="h-full overflow-y-auto p-4 pb-28 md:p-6 md:pb-6">
       <div className="mx-auto max-w-3xl space-y-4">
         {/* Cabecera */}
         <div className="flex items-center justify-between gap-3">
@@ -310,6 +405,51 @@ export default function VaultPage() {
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
             </div>
+
+            {/* Campo único con dictado: cuéntalo y la IA lo organiza */}
+            {!editando.id && (
+              <div className="rounded-2xl border border-brand/25 bg-brand-tint/30 p-3">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-brand">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Cuéntamelo o díctalo — la IA llena todo
+                </p>
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={dictado}
+                    onChange={(e) => setDictado(e.target.value)}
+                    rows={2}
+                    placeholder='Ej: "guarda github.com/duque/herramienta, sirve para desplegar, etiqueta dev"'
+                    className="min-h-[56px] flex-1 resize-none rounded-xl border bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none dark:bg-gray-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={alternarMic}
+                    aria-label={grabando ? "Detener dictado" : "Dictar por voz"}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all ${
+                      grabando
+                        ? "animate-pulse bg-red-500 text-white"
+                        : "bg-brand text-white active:scale-95"
+                    }`}
+                  >
+                    {grabando ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={entenderYGuardar}
+                    disabled={entendiendo || dictado.trim().length < 3}
+                    className="rounded-xl bg-brand px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {entendiendo ? "Entendiendo…" : "Entender y guardar ✨"}
+                  </button>
+                  <span className="text-[11px] text-muted-foreground">
+                    {grabando ? "Escuchando… habla nomás" : "o llena el formulario de abajo"}
+                  </span>
+                </div>
+              </div>
+            )}
+
             <input
               value={editando.url ?? ""}
               onChange={(e) =>
