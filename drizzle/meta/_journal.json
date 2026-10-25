@@ -43,6 +43,13 @@
       "when": 1792877314726,
       "tag": "0005_loose_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792899294722,
+      "tag": "0006_cute_colleen_wing",
+      "breakpoints": true
     }
   ]
 }

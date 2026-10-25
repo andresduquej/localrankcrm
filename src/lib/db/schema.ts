@@ -564,6 +564,58 @@ export const pushSubscription = pgTable(
   (t) => [index("push_subscription_org_idx").on(t.organizationId)]
 );
 
+/**
+ * Calendarios externos conectados: Google Calendar (vía su URL secreta en
+ * formato iCal/ICS, sin OAuth), Calendly y Cal.com (token de API). El token
+ * se guarda cifrado con AES-256-GCM.
+ */
+export const calendarSource = pgTable(
+  "calendar_source",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type").notNull(), // ics | calendly | calcom
+    name: text("name").notNull(),
+    url: text("url").notNull().default(""), // solo ics
+    tokenCipher: text("token_cipher"),
+    tokenIv: text("token_iv"),
+    tokenTag: text("token_tag"),
+    enabled: boolean("enabled").notNull().default(true),
+    lastSyncAt: timestamp("last_sync_at"),
+    lastError: text("last_error").notNull().default(""),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("calendar_source_org_idx").on(t.organizationId)]
+);
+
+/** Eventos traídos de los calendarios externos (upsert por externalId+source). */
+export const calendarEvent = pgTable(
+  "calendar_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => calendarSource.id, { onDelete: "cascade" }),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    startsAt: timestamp("starts_at").notNull(),
+    endsAt: timestamp("ends_at"),
+    location: text("location").notNull().default(""),
+    url: text("url").notNull().default(""),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("calendar_event_org_start_idx").on(t.organizationId, t.startsAt),
+    uniqueIndex("calendar_event_source_ext_idx").on(t.sourceId, t.externalId),
+  ]
+);
+
 export const crmNote = pgTable(
   "crm_note",
   {

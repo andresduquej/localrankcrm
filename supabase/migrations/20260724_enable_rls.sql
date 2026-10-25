@@ -90,3 +90,9 @@ ALTER TABLE "vault_item" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for vault_item" ON "vault_item" FOR ALL USING (false);
 ALTER TABLE "push_subscription" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for push_subscription" ON "push_subscription" FOR ALL USING (false);
+
+-- ============ CALENDARIOS EXTERNOS (2026-10) ============
+ALTER TABLE "calendar_source" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for calendar_source" ON "calendar_source" FOR ALL USING (false);
+ALTER TABLE "calendar_event" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for calendar_event" ON "calendar_event" FOR ALL USING (false);

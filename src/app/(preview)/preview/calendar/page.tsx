@@ -51,8 +51,9 @@ const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 export default function CalendarPage() {
   const [calendars, setCalendars] = useState<CalendarGroup[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [currentYear, setCurrentYear] = useState(2026);
-  const [currentMonth, setCurrentMonth] = useState(6); // July (0-indexed)
+  const hoyWall = new Date(Date.now() - 5 * 3600_000); // Bogotá
+  const [currentYear, setCurrentYear] = useState(hoyWall.getUTCFullYear());
+  const [currentMonth, setCurrentMonth] = useState(hoyWall.getUTCMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [showNewCalendar, setShowNewCalendar] = useState(false);
@@ -62,13 +63,120 @@ export default function CalendarPage() {
   const [visibleCalendars, setVisibleCalendars] = useState<Set<string>>(new Set());
   const [apptForm, setApptForm] = useState({ title: "", date: "", time: "", duration: "", calendarId: "", contact: "", type: "appointment" as Appointment["type"], amount: "", notes: "" });
   const [calForm, setCalForm] = useState({ name: "", color: COLORS[0]! });
+  // Calendarios externos (Google iCal / Calendly / Cal.com) + citas reales del bot
+  const [fuentes, setFuentes] = useState<{ id: string; type: string; name: string; lastError: string }[]>([]);
+  const [conectar, setConectar] = useState(false);
+  const [conForm, setConForm] = useState({ type: "ics" as "ics" | "calendly" | "calcom", name: "", url: "", token: "" });
+  const [conMsg, setConMsg] = useState("");
+  const [sincronizando, setSincronizando] = useState(false);
 
   useEffect(() => {
     const cals = loadFromStorage("calendars", SEED_CALENDARS);
     setCalendars(cals);
     setAppointments(loadFromStorage("calendar_appointments", SEED_APPOINTMENTS));
     setVisibleCalendars(new Set(cals.map((c) => c.id)));
+
+    // Citas reales del bot (Telegram) + eventos de calendarios conectados.
+    // Si hay datos reales, la demo se aparta: el calendario muestra la verdad.
+    Promise.all([
+      fetch("/api/appointments").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/calendar/sources").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([apts, ext]) => {
+      const grupos: CalendarGroup[] = [];
+      const eventos: Appointment[] = [];
+      if (Array.isArray(apts?.appointments) && apts.appointments.length > 0) {
+        grupos.push({ id: "real", name: "Mi agenda (bot)", color: "#0a6cff" });
+        for (const a of apts.appointments) {
+          const d = new Date(a.startsAt);
+          const wall = new Date(d.getTime() - 5 * 3600_000);
+          const p = (n: number) => String(n).padStart(2, "0");
+          eventos.push({
+            id: `real-${a.id}`,
+            title: a.title,
+            date: wall.toISOString().slice(0, 10),
+            time: `${p(wall.getUTCHours())}:${p(wall.getUTCMinutes())}`,
+            duration: "",
+            calendarId: "real",
+            contact: "",
+            type: "appointment",
+            notes: a.notes ?? "",
+            done: Boolean(a.completedAt),
+          });
+        }
+      }
+      if (Array.isArray(ext?.events) && ext.events.length > 0) {
+        const porFuente = new Map<string, string>();
+        ext.events.forEach((e: { sourceId: string; sourceName: string }) => {
+          if (!porFuente.has(e.sourceId)) porFuente.set(e.sourceId, e.sourceName);
+        });
+        let i = 0;
+        for (const [sid, nombre] of porFuente) {
+          grupos.push({ id: `ext-${sid}`, name: nombre, color: COLORS[(2 + i++) % COLORS.length]! });
+        }
+        for (const e of ext.events) {
+          const d = new Date(e.startsAt);
+          const wall = new Date(d.getTime() - 5 * 3600_000);
+          const p = (n: number) => String(n).padStart(2, "0");
+          eventos.push({
+            id: `ext-${e.id}`,
+            title: e.title,
+            date: wall.toISOString().slice(0, 10),
+            time: `${p(wall.getUTCHours())}:${p(wall.getUTCMinutes())}`,
+            duration: "",
+            calendarId: `ext-${e.sourceId}`,
+            contact: "",
+            type: "appointment",
+            notes: e.location ?? "",
+            done: false,
+          });
+        }
+      }
+      if (Array.isArray(ext?.sources)) setFuentes(ext.sources);
+      if (eventos.length > 0) {
+        setCalendars([...grupos, ...cals]);
+        setVisibleCalendars(new Set([...grupos.map((g) => g.id), ...cals.map((c) => c.id)]));
+        setAppointments(eventos);
+      }
+    });
   }, []);
+
+  /** Conecta Google (iCal), Calendly o Cal.com y sincroniza al instante. */
+  async function conectarFuente() {
+    setConMsg("");
+    const body =
+      conForm.type === "ics"
+        ? { type: "ics", name: conForm.name || "Google Calendar", url: conForm.url }
+        : { type: conForm.type, name: conForm.name || (conForm.type === "calendly" ? "Calendly" : "Cal.com"), token: conForm.token };
+    const res = await fetch("/api/calendar/sources", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+      .then((r) => r.json())
+      .catch(() => null);
+    if (res?.ok && res.synced > 0) {
+      setConMsg(`✅ Conectado: ${res.synced} eventos sincronizados. Recarga para verlos.`);
+      setConectar(false);
+      setTimeout(() => window.location.reload(), 1200);
+    } else if (res?.ok) {
+      setConMsg(res.warning ?? "Conectado, pero no trajo eventos — revisa la URL o el token.");
+    } else {
+      setConMsg(res?.error?.message ?? "No se pudo conectar");
+    }
+  }
+
+  async function sincronizarAhora() {
+    setSincronizando(true);
+    const res = await fetch("/api/calendar/sources", { method: "PUT" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    setSincronizando(false);
+    if (res?.ok) setConMsg(`🔄 ${res.events} eventos de ${res.synced} calendario(s)${res.errors?.length ? " · " + res.errors[0] : ""}`);
+    setTimeout(() => window.location.reload(), 1200);
+  }
+
+  async function borrarFuente(id: string) {
+    await fetch(`/api/calendar/sources?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    setTimeout(() => window.location.reload(), 800);
+  }
 
   function saveCals(u: CalendarGroup[]) { setCalendars(u); saveToStorage("calendars", u); }
   function saveAppts(u: Appointment[]) { setAppointments(u); saveToStorage("calendar_appointments", u); }
@@ -204,9 +312,68 @@ export default function CalendarPage() {
               <button onClick={() => setCalView("week")} className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition-all ${calView === "week" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Semana</button>
               <button onClick={() => setCalView("day")} className={`rounded-[7px] px-3.5 py-1.5 text-xs font-semibold transition-all ${calView === "day" ? "bg-white text-foreground shadow-sm" : "text-muted-foreground"}`}>Día</button>
             </div>
-            <button onClick={() => { setCurrentYear(2026); setCurrentMonth(6); setSelectedDate(today ?? null); }} className="rounded-full bg-muted px-3.5 py-1.5 text-xs font-semibold transition-transform active:scale-95">Hoy</button>
+            <button onClick={() => { setCurrentYear(hoyWall.getUTCFullYear()); setCurrentMonth(hoyWall.getUTCMonth()); setSelectedDate(today ?? null); }} className="rounded-full bg-muted px-3.5 py-1.5 text-xs font-semibold transition-transform active:scale-95">Hoy</button>
+            <button onClick={() => setConectar(true)} className="rounded-full bg-muted px-3.5 py-1.5 text-xs font-semibold transition-transform active:scale-95">🔗 Conectar</button>
           </div>
         </div>
+
+        {/* Panel: conectar calendarios externos */}
+        {conectar && (
+          <div className="border-b bg-muted/30 px-4 py-4 md:px-6">
+            <div className="mx-auto max-w-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold">Conectar calendarios</h3>
+                <button onClick={() => setConectar(false)} className="text-xs font-semibold text-muted-foreground">Cerrar ✕</button>
+              </div>
+
+              <div className="flex gap-1.5">
+                {([["ics", "Google (iCal)"], ["calendly", "Calendly"], ["calcom", "Cal.com"]] as const).map(([t, label]) => (
+                  <button key={t} onClick={() => setConForm((f) => ({ ...f, type: t }))} className={`flex-1 rounded-xl border px-2 py-2 text-[11px] font-bold ${conForm.type === t ? "border-brand bg-brand-tint text-brand" : "bg-white"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {conForm.type === "ics" ? (
+                <>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    En Google Calendar: ⚙️ Configuración del calendario → «Dirección secreta en formato iCal» → copia el enlace https://calendar.google.com/calendar/ical/… y pégalo aquí. Sin OAuth, se sincroniza directo.
+                  </p>
+                  <input value={conForm.url} onChange={(e) => setConForm({ ...conForm, url: e.target.value })} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="w-full rounded-xl border bg-white px-3 py-2.5 text-xs" />
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    {conForm.type === "calendly"
+                      ? "En Calendly: Integrations → API & webhooks → Generate Personal Access Token."
+                      : "En Cal.com: Settings → Developer → API Keys (permiso de lectura de bookings)."}
+                  </p>
+                  <input value={conForm.token} onChange={(e) => setConForm({ ...conForm, token: e.target.value })} type="password" placeholder="Token de API" className="w-full rounded-xl border bg-white px-3 py-2.5 text-xs" />
+                </>
+              )}
+              <input value={conForm.name} onChange={(e) => setConForm({ ...conForm, name: e.target.value })} placeholder="Nombre (ej: Personal, Clientes)" className="w-full rounded-xl border bg-white px-3 py-2.5 text-xs" />
+
+              {conMsg && <p className="text-xs font-semibold">{conMsg}</p>}
+              <button onClick={conectarFuente} className="w-full rounded-xl bg-brand py-2.5 text-xs font-bold text-white active:scale-[0.98]">Conectar y sincronizar</button>
+
+              {fuentes.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-[11px] font-bold text-muted-foreground">Conectados:</p>
+                  {fuentes.map((f) => (
+                    <div key={f.id} className="flex items-center gap-2 rounded-xl border bg-white px-3 py-2">
+                      <span className="flex-1 text-xs font-semibold">{f.name} <span className="text-muted-foreground">({f.type})</span></span>
+                      {f.lastError && <span className="text-[10px] text-[#c03a2e]">⚠️</span>}
+                      <button onClick={() => borrarFuente(f.id)} className="text-[10px] font-bold text-[#ff3b30]">Quitar</button>
+                    </div>
+                  ))}
+                  <button onClick={sincronizarAhora} disabled={sincronizando} className="w-full rounded-xl border py-2 text-xs font-semibold disabled:opacity-50">
+                    {sincronizando ? "Sincronizando…" : "🔄 Sincronizar ahora"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Calendar content */}
         <div className="flex-1 overflow-y-auto overflow-x-auto p-4">
@@ -262,9 +429,9 @@ export default function CalendarPage() {
               return d.toISOString().split("T")[0]!;
             });
             return (
-              <div className="min-w-[600px]">
+              <div className="min-w-0">
                 {/* Week header — pegajoso: al hacer scroll los días no se pierden */}
-                <div className="sticky top-0 z-10 grid grid-cols-[60px_repeat(7,1fr)] border-b bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)] dark:bg-gray-900">
+                <div className="sticky top-0 z-10 grid grid-cols-[32px_repeat(7,minmax(0,1fr))] border-b bg-white shadow-[0_1px_0_rgba(0,0,0,0.04)] md:grid-cols-[60px_repeat(7,1fr)] dark:bg-gray-900">
                   <div className="p-1" />
                   {weekDays.map((d) => {
                     const date = new Date(d + "T12:00:00");
@@ -279,7 +446,7 @@ export default function CalendarPage() {
                 </div>
                 {/* Hour rows */}
                 {HOURS.map((hour) => (
-                  <div key={hour} className="grid grid-cols-[60px_repeat(7,1fr)] border-b min-h-[48px]">
+                  <div key={hour} className="grid grid-cols-[32px_repeat(7,minmax(0,1fr))] border-b min-h-[48px] md:grid-cols-[60px_repeat(7,1fr)]">
                     <div className="p-1 text-[10px] text-muted-foreground text-right pr-2 pt-1">{hour}:00</div>
                     {weekDays.map((d) => {
                       const hourAppts = visibleAppts.filter((a) => a.date === d && a.time && parseInt(a.time.split(":")[0]!) === hour);

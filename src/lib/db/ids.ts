@@ -25,6 +25,8 @@ const prefixes = {
   aiSettings: "ais",
   vaultItem: "vlt",
   pushSubscription: "pus",
+  calendarSource: "cal",
+  calendarEvent: "evt",
 } as const;
 
 export type IdKind = keyof typeof prefixes;
