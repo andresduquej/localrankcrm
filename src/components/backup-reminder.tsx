@@ -20,9 +20,11 @@ export function BackupReminder() {
       // Show at 7pm (19:00) if not dismissed today
       if (hour >= 19 && dismissed !== today) {
         setShow(true);
+        // Nunca estorba para siempre: se cierra sola a los 45 segundos
+        setTimeout(() => setShow(false), 45_000);
         // Also try browser notification
         if (Notification.permission === "granted") {
-          new Notification("LocalRank CRM - Backup", {
+          new Notification("DuqueLabs", {
             body: "Recuerda hacer backup de tu CRM y subirlo a Google Drive",
             icon: "/icon.svg",
           });
@@ -65,7 +67,9 @@ export function BackupReminder() {
   if (!show) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 w-80 rounded-xl border bg-white p-4 shadow-2xl animate-in slide-in-from-top-2">
+    // Abajo a la izquierda, sobre la tab bar (antes vivía arriba a la
+    // derecha y TAPABA los controles de las páginas, ej. Mes/Semana/Día).
+    <div className="ios-fade-enter fixed bottom-[calc(88px+var(--safe-bottom))] left-4 z-40 w-[calc(100%-2rem)] max-w-80 rounded-2xl border bg-white p-4 shadow-2xl md:bottom-6 md:left-[276px] dark:bg-gray-900">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10">
           <Download className="h-5 w-5 text-brand" />

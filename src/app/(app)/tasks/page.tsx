@@ -166,7 +166,7 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 pb-28 md:p-6 md:pb-6">
+    <div className="h-full overflow-y-auto p-4 pb-52 md:p-6 md:pb-32">
       <div className="mx-auto max-w-2xl space-y-4">
         {/* Cabecera */}
         <div className="text-center md:text-left">
@@ -183,53 +183,6 @@ export default function TasksPage() {
             {feedback}
           </div>
         )}
-
-        {/* Alta de tarea: texto libre o dictado, con IA */}
-        <div className="rounded-[24px] border bg-white p-3.5 shadow-sm md:p-4 dark:bg-gray-900">
-          <div className="flex items-end gap-2">
-            <input
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void crear(true);
-              }}
-              placeholder='"llamar a Juan mañana 3pm urgente"'
-              className="min-h-[46px] flex-1 rounded-2xl border bg-background px-4 py-2.5 text-[15px] focus:border-brand focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={alternarMic}
-              aria-label={grabando ? "Detener dictado" : "Dictar"}
-              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full text-white transition-all active:scale-90 ${
-                grabando ? "animate-pulse bg-[#ff3b30]" : "bg-brand"
-              }`}
-            >
-              {grabando ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-            </button>
-          </div>
-          <div className="mt-2.5 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => crear(false)}
-              disabled={creando || texto.trim().length < 3}
-              className="flex items-center gap-1.5 rounded-2xl bg-brand px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50 active:scale-[0.97]"
-            >
-              <Sparkles className="h-4 w-4" /> Entender y crear
-            </button>
-            <button
-              type="button"
-              onClick={() => crear(true)}
-              disabled={creando || texto.trim().length < 2}
-              className="flex items-center gap-1.5 rounded-2xl border px-4 py-2.5 text-[13px] font-semibold disabled:opacity-50 active:scale-[0.97]"
-            >
-              <Plus className="h-4 w-4" /> Rápida
-            </button>
-            {grabando && <span className="text-[11px] font-medium text-[#ff3b30]">Escuchando…</span>}
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            «Entender» usa tu IA: saca fecha, prioridad y título de lo que dictes. «Rápida» la guarda tal cual.
-          </p>
-        </div>
 
         {/* Filtros con conteo legible */}
         <div className="flex flex-wrap justify-center gap-2 md:justify-start">
@@ -270,7 +223,7 @@ export default function TasksPage() {
               {filtro === "todas" ? "Sin tareas pendientes" : "Nada por aquí con este filtro"}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Crea una arriba o háblale al bot: <b>/tarea llamar a Juan mañana 30 min</b>
+              Crea una abajo o háblale al bot: <b>/tarea llamar a Juan mañana 30 min</b>
             </p>
           </div>
         ) : (
@@ -329,8 +282,55 @@ export default function TasksPage() {
           </div>
         )}
       </div>
+
+      {/* Barra fija de alta: lista arriba, escribir/dictar abajo (estilo chat) */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/5 bg-white/90 px-4 py-2.5 backdrop-blur md:bottom-0 md:left-[256px] dark:border-white/10 dark:bg-gray-900/90" style={{ paddingBottom: "calc(10px + var(--safe-bottom))" }}>
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => crear(false)}
+              disabled={creando || texto.trim().length < 3}
+              className="flex items-center gap-1 rounded-full bg-brand px-3 py-1 text-[11px] font-bold text-white disabled:opacity-40 active:scale-95"
+            >
+              <Sparkles className="h-3 w-3" /> Entender y crear
+            </button>
+            <button
+              type="button"
+              onClick={() => crear(true)}
+              disabled={creando || texto.trim().length < 2}
+              className="rounded-full border px-3 py-1 text-[11px] font-semibold disabled:opacity-40 active:scale-95"
+            >
+              + Rápida
+            </button>
+            {grabando && <span className="text-[11px] font-bold text-[#ff3b30]">🎙 Escuchando…</span>}
+            {creando && <span className="text-[11px] text-muted-foreground">Creando…</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void crear(true);
+              }}
+              placeholder='"llamar a Juan mañana 3pm urgente"'
+              className="min-h-[46px] flex-1 rounded-full border bg-background px-4 text-[15px] focus:border-brand focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={alternarMic}
+              aria-label={grabando ? "Detener dictado" : "Dictar"}
+              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full transition-all active:scale-90 ${
+                grabando ? "animate-pulse bg-[#ff3b30] text-white" : "text-muted-foreground hover:bg-muted hover:text-brand"
+              }`}
+            >
+              {grabando ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-const PRIORIDAED_FALLBACK = PRIORIDAD.medium;
+
