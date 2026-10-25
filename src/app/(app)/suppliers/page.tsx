@@ -25,6 +25,8 @@ import {
  */
 
 type Proveedor = {
+  githubStars?: number | null;
+  githubPushed?: string | null;
   id: string;
   type: string;
   title: string;
@@ -87,6 +89,8 @@ export default function SuppliersPage() {
   const [q, setQ] = useState("");
   const [editando, setEditando] = useState<null | Partial<Proveedor>>(null);
   const [mensaje, setMensaje] = useState("");
+  const [textoRapido, setTextoRapido] = useState("");
+  const [guardandoRapido, setGuardandoRapido] = useState(false);
 
   useEffect(() => {
     recargar();
@@ -154,6 +158,33 @@ export default function SuppliersPage() {
     if (!res?.ok) recargar();
   }
 
+  /** Pega lo que sea: si parece URL va como url; si no, como título libre. */
+  async function guardarRapido() {
+    const bruto = textoRapido.trim();
+    if (bruto.length < 2) return;
+    setGuardandoRapido(true);
+    const esUrl = /^https?:\/\/\S+/i.test(bruto) || /^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(bruto);
+    const res = await fetch("/api/suppliers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        esUrl
+          ? { url: bruto.startsWith("http") ? bruto : `https://${bruto}` }
+          : { title: bruto.slice(0, 200) }
+      ),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    setGuardandoRapido(false);
+    if (res?.ok) {
+      setTextoRapido("");
+      flash(`Guardado ✨ ${res.item.title}`);
+      recargar();
+    } else {
+      flash("No se pudo guardar — prueba de nuevo");
+    }
+  }
+
   async function alternarArchivado(it: Proveedor) {
     await fetch("/api/suppliers", {
       method: "PATCH",
@@ -190,7 +221,7 @@ export default function SuppliersPage() {
   );
 
   return (
-    <div className="h-full overflow-y-auto p-4 pb-28 md:p-6 md:pb-6">
+    <div className="h-full overflow-y-auto overflow-x-hidden p-4 pb-28 md:p-6 md:pb-6">
       <div className="mx-auto max-w-3xl space-y-4">
         {/* Cabecera */}
         <div className="flex items-center justify-between gap-3">
@@ -214,6 +245,32 @@ export default function SuppliersPage() {
             {mensaje}
           </div>
         )}
+
+        {/* Pega lo que sea: URL, un número, un nombre — la IA lo organiza */}
+        <div className="rounded-2xl border bg-white p-3.5 shadow-sm dark:bg-gray-900">
+          <div className="flex gap-2">
+            <input
+              value={textoRapido}
+              onChange={(e) => setTextoRapido(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") guardarRapido();
+              }}
+              placeholder="Pega una URL, un nombre, un número — lo que sea…"
+              className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={guardarRapido}
+              disabled={guardandoRapido || textoRapido.trim().length < 2}
+              className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-50"
+            >
+              {guardandoRapido ? "…" : "Guardar"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Si es un link queda con ⭐ y actividad; si no, la IA le saca título y etiquetas igual.
+          </p>
+        </div>
 
         {/* Formulario agregar/editar */}
         {editando && (
@@ -336,7 +393,7 @@ export default function SuppliersPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {q || filtro !== "todos"
                 ? "Prueba con otra búsqueda o filtro"
-                : "Guarda tu primera página, repo o link de Instagram — pega la URL y listo"}
+                : "Pega arriba una URL, un nombre o cualquier dato — la IA lo organiza"}
             </p>
           </div>
         ) : (
@@ -346,7 +403,7 @@ export default function SuppliersPage() {
               return (
                 <div
                   key={it.id}
-                  className={`rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900 ${
+                  className={`min-w-0 rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900 ${
                     it.archived ? "opacity-50" : ""
                   }`}
                 >
@@ -361,9 +418,9 @@ export default function SuppliersPage() {
                           href={it.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 truncate text-xs text-brand hover:underline"
+                          className="flex min-w-0 items-center gap-1 text-xs text-brand hover:underline"
                         >
-                          <span className="truncate">{it.url}</span>
+                          <span className="break-all">{it.url}</span>
                           <ExternalLink className="h-3 w-3 shrink-0" />
                         </a>
                       )}
@@ -379,6 +436,11 @@ export default function SuppliersPage() {
                         {it.rating === 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                             Calificar: {estrellas(it.rating, (r) => calificar(it, r))}
+                          </span>
+                        )}
+                        {typeof it.githubStars === "number" && it.githubStars > 0 && (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold">
+                            ⭐ {it.githubStars >= 1000 ? `${(it.githubStars / 1000).toFixed(1)}k` : it.githubStars}
                           </span>
                         )}
                         {it.tags.map((t) => (

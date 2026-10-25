@@ -657,6 +657,8 @@ export const crmSupplier = pgTable(
     notes: text("notes").notNull().default(""), // por qué sirve / qué aporta
     tags: jsonb("tags").notNull().default([]),
     rating: integer("rating").notNull().default(0), // 0–5 estrellas
+    githubStars: integer("github_stars"), // ⭐ del repo (API pública de GitHub)
+    githubPushed: text("github_pushed"), // última actividad del repo (ISO)
     archived: boolean("archived").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

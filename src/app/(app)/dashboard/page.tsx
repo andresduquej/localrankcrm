@@ -152,26 +152,30 @@ export default function DashboardPage() {
 
   /** Pega una URL y queda guardada como proveedor (Enter o botón). */
   async function agregarUrlRapida() {
-    let url = urlRapida.trim();
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    const bruto = urlRapida.trim();
+    if (!bruto) return;
+    // Acepta cualquier dato: link, número, nombre… (la IA lo organiza)
+    const esUrl = /^https?:\/\/\S+/i.test(bruto) || /^[a-z0-9-]+\.[a-z]{2,}(\/\S*)?$/i.test(bruto);
+    const body = esUrl
+      ? { url: bruto.startsWith("http") ? bruto : `https://${bruto}` }
+      : { title: bruto.slice(0, 200) };
     setGuardandoUrl(true);
     const res = await fetch("/api/suppliers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(body),
     })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null);
     setGuardandoUrl(false);
     if (res?.item) {
-      setProveedores((prev) => [res.item, ...prev].slice(0, 3));
+      setProveedores([res.item]);
       setNProveedores((n) => (n ?? 0) + 1);
       setUrlRapida("");
       setAvisoUrl("Guardado ✅");
       setTimeout(() => setAvisoUrl(""), 3000);
     } else {
-      setAvisoUrl("No se pudo guardar — revisa la URL");
+      setAvisoUrl("No se pudo guardar — intenta de nuevo");
       setTimeout(() => setAvisoUrl(""), 4000);
     }
   }
@@ -309,6 +313,67 @@ export default function DashboardPage() {
           ))}
         </div>
 
+        {/* ── Proveedores: acceso directo + resumen del último ── */}
+        <div className="mb-4 rounded-[24px] border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="font-semibold">
+              Proveedores {nProveedores !== null && nProveedores > 0 && (
+                <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand">{nProveedores}</span>
+              )}
+            </h3>
+            <Link href={`${prefix}/suppliers`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
+              Ver todas <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          {/* Solo el ÚLTIMO agregado — la lista completa vive en Proveedores */}
+          {proveedores.length > 0 && proveedores[0] && (
+            <div className="mb-2.5 flex min-w-0 items-center gap-3 rounded-xl bg-muted/40 p-2.5">
+              {(() => {
+                const Icono = TIPO_ICONO[proveedores[0]!.type] ?? Link2;
+                return (
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                    <Icono className="h-4 w-4" />
+                  </span>
+                );
+              })()}
+              <div className="min-w-0 flex-1">
+                <b className="block truncate text-sm font-semibold">{proveedores[0]!.title}</b>
+                {proveedores[0]!.url && (
+                  <a href={proveedores[0]!.url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-brand hover:underline">
+                    {proveedores[0]!.url}
+                  </a>
+                )}
+              </div>
+              {proveedores[0]!.rating > 0 && (
+                <span className="shrink-0 text-[11px]">{"⭐".repeat(Math.min(5, proveedores[0]!.rating))}</span>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <input
+              value={urlRapida}
+              onChange={(e) => setUrlRapida(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") agregarUrlRapida();
+              }}
+              inputMode="url"
+              placeholder="Pega una URL (web, GitHub, Instagram…)"
+              className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={agregarUrlRapida}
+              disabled={guardandoUrl || !urlRapida.trim()}
+              className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-50"
+            >
+              {guardandoUrl ? "…" : "Agregar"}
+            </button>
+          </div>
+          {avisoUrl && <p className="mt-1.5 break-words text-[11px] font-medium text-brand">{avisoUrl}</p>}
+        </div>
+
         {/* ── Próximas citas — alimentadas por el bot de Telegram ── */}
         <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
           <div className="mb-1 flex items-center justify-between">
@@ -345,71 +410,6 @@ export default function DashboardPage() {
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Agenda más con tu bot: <code className="rounded bg-muted px-1.5 py-0.5">/cita reunión mañana 3pm</code>
           </p>
-        </div>
-
-        {/* ── Proveedores: pega una URL y queda guardada ── */}
-        <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
-          <div className="mb-1 flex items-center justify-between">
-            <h3 className="font-semibold">
-              Proveedores {nProveedores !== null && nProveedores > 0 && (
-                <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand">{nProveedores}</span>
-              )}
-            </h3>
-            <Link href={`${prefix}/suppliers`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
-              Ver todos <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Páginas, repos, resúmenes e Instagram que te sirven como fuente — pega el link y queda guardado con etiquetas y estrellas.
-          </p>
-          <div className="flex gap-2">
-            <input
-              value={urlRapida}
-              onChange={(e) => setUrlRapida(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") agregarUrlRapida();
-              }}
-              inputMode="url"
-              placeholder="Pega una URL (web, GitHub, Instagram…)"
-              className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={agregarUrlRapida}
-              disabled={guardandoUrl || !urlRapida.trim()}
-              className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-50"
-            >
-              {guardandoUrl ? "…" : "Agregar"}
-            </button>
-          </div>
-          {avisoUrl && (
-            <p className="mt-1.5 text-[11px] font-medium text-brand">{avisoUrl}</p>
-          )}
-          {proveedores.length > 0 && (
-            <div className="mt-2">
-              {proveedores.map((p) => {
-                const Icono = TIPO_ICONO[p.type] ?? Link2;
-                return (
-                  <div key={p.id} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
-                      <Icono className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <b className="block truncate text-sm font-semibold">{p.title}</b>
-                      {p.url && (
-                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-brand hover:underline">
-                          {p.url}
-                        </a>
-                      )}
-                    </div>
-                    {p.rating > 0 && (
-                      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{"⭐".repeat(p.rating)}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* ── Tu semana: barras reales de tareas por día ── */}

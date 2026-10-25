@@ -57,6 +57,13 @@
       "when": 1792945000505,
       "tag": "0007_redundant_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792953135038,
+      "tag": "0008_oval_naoko",
+      "breakpoints": true
     }
   ]
 }
