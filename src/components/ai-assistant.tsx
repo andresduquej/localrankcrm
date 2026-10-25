@@ -186,6 +186,8 @@ export function AiAssistant() {
 
   const toggleVoice = useCallback(() => {
     if (listening) {
+      // Corte manual: el texto transcrito YA quedó en el input; el usuario
+      // lo edita o envía con el botón. El estado se libera siempre.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (recognitionRef.current as any)?.stop?.();
       setListening(false);
@@ -195,15 +197,18 @@ export function AiAssistant() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
-      alert("Tu navegador no soporta reconocimiento de voz. Usa Google Chrome o Microsoft Edge.");
+      alert("Tu navegador no soporta reconocimiento de voz. Prueba en Safari/Chrome actualizado.");
       return;
     }
 
     const recognition = new SR();
     recognition.lang = "es-CO";
     recognition.interimResults = true;
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
+
+    // Base confirmada + interino: evita duplicar texto al reenviar resultados
+    let confirmado = "";
 
     recognition.onstart = () => setListening(true);
     recognition.onend = () => setListening(false);
@@ -211,38 +216,39 @@ export function AiAssistant() {
       setListening(false);
       const err = e as Record<string, unknown>;
       if (err.error === "not-allowed") {
-        alert("Permiso de micrófono denegado. Haz clic en el ícono de candado en la barra de direcciones y permite el micrófono.");
-      } else if (err.error === "no-speech") {
-        setInput("(No se detectó voz. Intenta de nuevo)");
+        alert("Permiso de micrófono denegado. En Ajustes del iPhone → DuqueLabs (o Safari) → permite el micrófono.");
       }
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
-      let transcript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+      let interino = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const r = event.results[i];
+        if (r.isFinal) confirmado += r[0].transcript + " ";
+        else interino += r[0].transcript;
       }
-      setInput(transcript);
-      // Auto-send on final result
-      const lastResult = event.results[event.results.length - 1];
-      if (lastResult?.isFinal) {
-        setTimeout(() => {
-          const btn = document.getElementById("ai-send-btn");
-          if (btn) btn.click();
-        }, 400);
-      }
+      setInput((confirmado + interino).trim());
+      // El envío lo decide el usuario: nada de clics automáticos.
     };
 
     recognitionRef.current = recognition;
     try {
       recognition.start();
-    } catch (e) {
-      alert("Error al iniciar el micrófono. Asegúrate de estar en HTTPS y que el navegador sea Chrome o Edge.");
+    } catch {
+      alert("No pude iniciar el micrófono — cierra y vuelve a abrir la app e intenta de nuevo.");
+      setListening(false);
     }
   }, [listening]);
 
   async function send() {
+    // Escuchando → cortar el micrófono: lo transcrito queda en el input
+    // y este envío ya lo manda (como pediste el botón nunca queda pegado).
+    if (listening) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (recognitionRef.current as any)?.stop?.();
+      setListening(false);
+    }
     const text = input.trim();
     if (!text || loading) return;
 
@@ -424,7 +430,8 @@ export function AiAssistant() {
           <button
             id="ai-send-btn"
             onClick={send}
-            disabled={!input.trim() || loading}
+            title={listening ? "Dejar de escuchar y enviar" : "Enviar"}
+            disabled={loading || (!input.trim() && !listening)}
             aria-label="Enviar"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-[#0856cc] text-white shadow-md transition-transform active:scale-90 disabled:opacity-40"
           >
