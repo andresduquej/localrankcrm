@@ -6,18 +6,32 @@ import { usePathname } from "next/navigation";
 import {
   ChevronRight,
   Database,
+  FileText,
   Github,
   Globe,
+  Instagram,
+  Link2,
   Wrench,
 } from "lucide-react";
 
 /**
  * Hoy — tu día real: KPIs vivos (citas, tareas, contactos, mensajes),
- * agenda y tareas del mayordomo, bóveda y comandos del bot.
- * Cero datos demo: todo viene de las APIs del CRM.
+ * agenda y tareas del mayordomo, recursos y proveedores.
+ * Todo llega en UNA petición (/api/overview); los conteos los hace la BD.
+ * Cero datos demo: si la petición falla (p. ej. preview) quedan las citas
+ * de cortesía.
  */
 
 type VaultLight = { id: string; type: string; title: string; url: string };
+
+type SupplierLight = {
+  id: string;
+  type: string;
+  title: string;
+  url: string;
+  rating: number;
+  tags: string[];
+};
 
 type Cita = {
   title: string;
@@ -30,6 +44,14 @@ type Tarea = {
   title: string;
   priority: string;
   dueDate: string;
+};
+
+const TIPO_ICONO: Record<string, typeof Globe> = {
+  repo: Github,
+  pagina: Globe,
+  resumen: FileText,
+  instagram: Instagram,
+  otro: Link2,
 };
 
 function saludo(): string {
@@ -79,6 +101,11 @@ export default function DashboardPage() {
   const [nContactos, setNContactos] = useState<number | null>(null);
   const [sinLeer, setSinLeer] = useState<number | null>(null);
   const [boveda, setBoveda] = useState<VaultLight[]>([]);
+  const [proveedores, setProveedores] = useState<SupplierLight[]>([]);
+  const [nProveedores, setNProveedores] = useState<number | null>(null);
+  const [urlRapida, setUrlRapida] = useState("");
+  const [guardandoUrl, setGuardandoUrl] = useState(false);
+  const [avisoUrl, setAvisoUrl] = useState("");
 
   async function alternarTarea(id: string, done: boolean) {
     // Optimista: quita/repone la fila según el resultado del PATCH.
@@ -103,54 +130,51 @@ export default function DashboardPage() {
     };
     setCitas([mk(11, "Reunión con Juan Pérez", "Propuesta · Cafe Velázquez"), mk(15, "Llamada de seguimiento", "María Gómez · Dental Sonrisa")]);
 
-    // Nombre real de la sesión (en preview no hay: queda el de cortesía)
-    fetch("/api/auth/get-session")
+    // TODO el dashboard en una sola petición
+    fetch("/api/overview")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        const n = d?.user?.name;
-        if (typeof n === "string" && n.trim()) setNombre(n.trim().split(" ")[0]!);
+        if (!d) return;
+        if (typeof d.nombre === "string" && d.nombre.trim()) setNombre(d.nombre);
+        if (Array.isArray(d.citas) && d.citas.length > 0) setCitas(d.citas);
+        if (Array.isArray(d.tareas)) setTareas(d.tareas);
+        setNContactos(typeof d.nContactos === "number" ? d.nContactos : 0);
+        setSinLeer(typeof d.sinLeer === "number" ? d.sinLeer : 0);
+        setBoveda(Array.isArray(d.recursos) ? d.recursos : []);
+        setProveedores(Array.isArray(d.proveedores) ? d.proveedores : []);
+        setNProveedores(typeof d.nProveedores === "number" ? d.nProveedores : 0);
       })
-      .catch(() => {});
-
-    // Agenda real (la alimenta el bot de Telegram)
-    fetch("/api/appointments")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (Array.isArray(d?.appointments) && d.appointments.length > 0) {
-          setCitas(d.appointments.slice(0, 4));
-        }
-      })
-      .catch(() => {});
-
-    // Tareas reales del mayordomo (bot de Telegram + esta UI)
-    fetch("/api/tasks")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (Array.isArray(d?.tasks)) setTareas(d.tasks.slice(0, 5));
-      })
-      .catch(() => {});
-
-    // KPIs vivos: contactos, mensajes sin leer y bóveda
-    fetch("/api/contacts")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setNContactos(Array.isArray(d?.contacts) ? d.contacts.length : 0))
-      .catch(() => setNContactos(0));
-
-    fetch("/api/conversations")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        const convs = Array.isArray(d?.conversations) ? d.conversations : [];
-        setSinLeer(
-          convs.reduce((a: number, c: { unreadCount?: number }) => a + (c.unreadCount ?? 0), 0)
-        );
-      })
-      .catch(() => setSinLeer(0));
-
-    fetch("/api/vault")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBoveda(Array.isArray(d?.items) ? d.items.slice(0, 3) : []))
-      .catch(() => {});
+      .catch(() => {
+        setNContactos(0);
+        setSinLeer(0);
+      });
   }, []);
+
+  /** Pega una URL y queda guardada como proveedor (Enter o botón). */
+  async function agregarUrlRapida() {
+    let url = urlRapida.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    setGuardandoUrl(true);
+    const res = await fetch("/api/suppliers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    setGuardandoUrl(false);
+    if (res?.item) {
+      setProveedores((prev) => [res.item, ...prev].slice(0, 3));
+      setNProveedores((n) => (n ?? 0) + 1);
+      setUrlRapida("");
+      setAvisoUrl("Guardado ✅");
+      setTimeout(() => setAvisoUrl(""), 3000);
+    } else {
+      setAvisoUrl("No se pudo guardar — revisa la URL");
+      setTimeout(() => setAvisoUrl(""), 4000);
+    }
+  }
 
   const proximas = [...citas].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const citasHoy = proximas.filter((c) => esHoyBogota(c.startsAt)).length;
@@ -163,14 +187,15 @@ export default function DashboardPage() {
   const pendientesHoy = tareas.filter((t) => t.dueDate && t.dueDate.slice(0, 10) === hoyKey).length;
   const alDia = tareas.length > 0 ? Math.round(((tareas.length - vencidas) / tareas.length) * 100) : 100;
 
-  /** Tareas con fecha por día, próximos 7 días (hoy incluido), hora Bogotá. */
+  /** Tareas con fecha por día, próximos 7 días (hoy incluido), hora Bogotá.
+   *  Se calcula sobre TODAS las tareas que manda /api/overview (hasta 50). */
   const semana = useMemo(() => {
     const dias: { label: string; n: number; esHoy: boolean }[] = [];
     for (let i = 0; i < 7; i++) {
       const key = new Date(Date.now() - 5 * 3600_000 + i * 86_400_000).toISOString().slice(0, 10);
       dias.push({
         label: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"][
-          new Date(Date.now() + i * 86_400_000).getDay()
+          new Date(Date.now() - 5 * 3600_000 + i * 86_400_000).getUTCDay()
         ]!,
         n: tareas.filter((t) => t.dueDate && t.dueDate.slice(0, 10) === key).length,
         esHoy: i === 0,
@@ -257,13 +282,14 @@ export default function DashboardPage() {
           </div>
         </Link>
 
-        {/* ── Cuatro accesos: solo el ícono con su conteo ── */}
-        <div className="mb-4 flex items-start justify-between px-2 md:mb-5 md:justify-start md:gap-8 md:px-6">
+        {/* ── Accesos: solo el ícono con su conteo ── */}
+        <div className="mb-4 flex items-start justify-between px-1 md:mb-5 md:justify-start md:gap-8 md:px-6">
           {[
             { href: "/calendar", n: citasHoy, label: "Citas hoy", emoji: "📅", tint: "bg-[#ff9f0a]/15 text-[16px]" },
             { href: "/contacts", n: nContactos, label: "Contactos", emoji: "👤", tint: "bg-[#5856d6]/15 text-[16px]" },
             { href: "/inbox", n: sinLeer, label: "Sin leer", emoji: "💬", tint: "bg-[#30b0c7]/15 text-[16px]" },
             { href: "/vault", n: boveda.length, label: "Recursos", emoji: "🗂", tint: "bg-brand-tint text-[16px]" },
+            { href: "/suppliers", n: nProveedores, label: "Proveedores", emoji: "🏢", tint: "bg-[#34c759]/15 text-[16px]" },
           ].map((acceso) => (
             <Link
               key={acceso.href}
@@ -321,6 +347,71 @@ export default function DashboardPage() {
           </p>
         </div>
 
+        {/* ── Proveedores: pega una URL y queda guardada ── */}
+        <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="font-semibold">
+              Proveedores {nProveedores !== null && nProveedores > 0 && (
+                <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 text-[11px] font-bold text-brand">{nProveedores}</span>
+              )}
+            </h3>
+            <Link href={`${prefix}/suppliers`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
+              Ver todos <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">
+            Páginas, repos, resúmenes e Instagram que te sirven como fuente — pega el link y queda guardado con etiquetas y estrellas.
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={urlRapida}
+              onChange={(e) => setUrlRapida(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") agregarUrlRapida();
+              }}
+              inputMode="url"
+              placeholder="Pega una URL (web, GitHub, Instagram…)"
+              className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={agregarUrlRapida}
+              disabled={guardandoUrl || !urlRapida.trim()}
+              className="shrink-0 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-50"
+            >
+              {guardandoUrl ? "…" : "Agregar"}
+            </button>
+          </div>
+          {avisoUrl && (
+            <p className="mt-1.5 text-[11px] font-medium text-brand">{avisoUrl}</p>
+          )}
+          {proveedores.length > 0 && (
+            <div className="mt-2">
+              {proveedores.map((p) => {
+                const Icono = TIPO_ICONO[p.type] ?? Link2;
+                return (
+                  <div key={p.id} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                      <Icono className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <b className="block truncate text-sm font-semibold">{p.title}</b>
+                      {p.url && (
+                        <a href={p.url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-brand hover:underline">
+                          {p.url}
+                        </a>
+                      )}
+                    </div>
+                    {p.rating > 0 && (
+                      <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">{"⭐".repeat(p.rating)}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* ── Tu semana: barras reales de tareas por día ── */}
         <div className="mb-4 rounded-[28px] border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
           <div className="mb-3 flex items-center justify-between">
@@ -357,12 +448,12 @@ export default function DashboardPage() {
             {/* Tareas de hoy (las crea el bot de Telegram con /tarea) */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
               <h3 className="mb-1 font-semibold">Tareas de hoy</h3>
-              {tareas.length === 0 && (
+              {tareas.slice(0, 5).length === 0 && (
                 <p className="py-3 text-sm text-muted-foreground">
                   Sin tareas pendientes — crea una con <b>/tarea</b> en Telegram
                 </p>
               )}
-              {tareas.map((tarea) => {
+              {tareas.slice(0, 5).map((tarea) => {
                 const vencida =
                   tarea.dueDate &&
                   !Number.isNaN(new Date(tarea.dueDate).getTime()) &&

@@ -638,3 +638,31 @@ export const crmNote = pgTable(
     index("crm_note_org_idx").on(t.organizationId),
   ]
 );
+
+/**
+ * Proveedores: fuentes de información que el usuario guarda para tener a mano
+ * (páginas web, repos de GitHub, resúmenes, links de Instagram…). Se organizan
+ * con etiquetas (tags) y estrellas (rating 0–5).
+ */
+export const crmSupplier = pgTable(
+  "crm_supplier",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    url: text("url").notNull().default(""),
+    type: text("type").notNull().default("pagina"), // pagina | repo | resumen | instagram | otro
+    notes: text("notes").notNull().default(""), // por qué sirve / qué aporta
+    tags: jsonb("tags").notNull().default([]),
+    rating: integer("rating").notNull().default(0), // 0–5 estrellas
+    archived: boolean("archived").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    index("crm_supplier_org_idx").on(t.organizationId),
+    index("crm_supplier_org_type_idx").on(t.organizationId, t.type),
+  ]
+);

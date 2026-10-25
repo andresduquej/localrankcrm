@@ -27,6 +27,7 @@ const prefixes = {
   pushSubscription: "pus",
   calendarSource: "cal",
   calendarEvent: "evt",
+  crmSupplier: "crs",
 } as const;
 
 export type IdKind = keyof typeof prefixes;

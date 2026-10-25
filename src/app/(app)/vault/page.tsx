@@ -406,7 +406,7 @@ export default function VaultPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 pb-28 md:p-6 md:pb-6">
+    <div className="h-full overflow-y-auto overflow-x-hidden p-4 pb-28 md:p-6 md:pb-6">
       <div className="mx-auto max-w-3xl space-y-4">
         {/* Cabecera */}
         <div className="flex items-center justify-between gap-3">
@@ -416,7 +416,7 @@ export default function VaultPage() {
               Tus repos, páginas, herramientas y videos — todo en un lugar
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2">
             <input
               ref={fileRef}
               type="file"
@@ -531,7 +531,7 @@ export default function VaultPage() {
         )}
 
         {/* Filtros + búsqueda */}
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="flex flex-wrap items-start gap-2 md:flex-row md:items-center">
           <div className="flex flex-wrap gap-1.5">
             {FILTROS.map((f) => (
               <button
@@ -739,11 +739,11 @@ export default function VaultPage() {
             {visibles.map((it) => (
               <div
                 key={it.id}
-                className={`rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900 ${
+                className={`min-w-0 rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900 ${
                   it.archived ? "opacity-50" : ""
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex min-w-0 items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
                     {it.type === "repo" ? (
                       <Github className="h-5 w-5" />
@@ -760,7 +760,7 @@ export default function VaultPage() {
                         href={it.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block truncate text-xs text-brand hover:underline"
+                        className="block break-all text-xs text-brand hover:underline"
                       >
                         {it.url}
                       </a>
@@ -795,7 +795,7 @@ export default function VaultPage() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center gap-2 border-t pt-2.5">
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-2.5">
                   {it.type === "repo" && parseGithubRepo(it.url) && (
                     <button
                       type="button"

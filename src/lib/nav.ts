@@ -154,6 +154,7 @@ export const PERSONAL_NAV: NavItem[] = [
   { href: "/vault", label: "Recursos", icon: Database },
   { href: "/notes", label: "Bóveda de ideas", icon: StickyNote },
   { href: "/contacts", label: "Contactos", icon: Users },
+  { href: "/suppliers", label: "Proveedores", icon: Building2 },
 ];
 
 /** Tab bar en modo personal: 4 tuyos + "Más". */

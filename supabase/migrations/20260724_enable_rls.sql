@@ -96,3 +96,7 @@ ALTER TABLE "calendar_source" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for calendar_source" ON "calendar_source" FOR ALL USING (false);
 ALTER TABLE "calendar_event" ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Deny all for calendar_event" ON "calendar_event" FOR ALL USING (false);
+
+-- ============ PROVEEDORES (2026-10 tanda 3) ============
+ALTER TABLE "crm_supplier" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Deny all for crm_supplier" ON "crm_supplier" FOR ALL USING (false);
