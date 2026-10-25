@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Check, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
 /**
  * Ajustes → IA / APIs. La fuente de verdad es la BD (ai_settings por
@@ -167,6 +167,8 @@ export default function AIProvidersPage() {
   const [loading, setLoading] = useState(true);
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [liveModels, setLiveModels] = useState<Record<string, string[]>>({});
+  const [loadingModels, setLoadingModels] = useState<string | null>(null);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [hasPin, setHasPin] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() => {
@@ -217,6 +219,24 @@ export default function AIProvidersPage() {
       .catch(() => null)
       .finally(() => setLoading(false));
   }, []);
+
+  /** Trae la lista de modelos EN VIVO del proveedor (se acabó el catálogo viejo). */
+  async function cargarModelos(providerId: string, apiKey?: string) {
+    setLoadingModels(providerId);
+    const res = await fetch("/api/settings/ai", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerId, apiKey: apiKey?.trim() || undefined }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    setLoadingModels(null);
+    if (res?.ok && res.models?.length) {
+      setLiveModels((prev) => ({ ...prev, [providerId]: res.models }));
+    } else {
+      setLiveModels((prev) => ({ ...prev, [providerId]: [] }));
+    }
+  }
 
   function updateDraft(providerId: string, field: keyof Draft, value: string) {
     setDrafts((prev) => ({
@@ -519,22 +539,36 @@ export default function AIProvidersPage() {
                     />
                   </div>
 
-                  {/* Model */}
+                  {/* Model — lista EN VIVO del proveedor, sin catálogo viejo */}
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Modelo</label>
-                    <select
+                    <label className="mb-1 flex items-center justify-between text-sm font-medium">
+                      <span>Modelo</span>
+                      <button
+                        type="button"
+                        onClick={() => cargarModelos(provider.id, draft.apiKey)}
+                        disabled={loadingModels === provider.id}
+                        className="flex items-center gap-1 rounded-full bg-brand-tint px-2.5 py-1 text-[11px] font-bold text-brand active:scale-95 disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${loadingModels === provider.id ? "animate-spin" : ""}`} />
+                        {loadingModels === provider.id ? "Cargando…" : "Traer modelos en vivo"}
+                      </button>
+                    </label>
+                    <input
+                      list={`models-${provider.id}`}
                       value={draft.model}
                       onChange={(e) => updateDraft(provider.id, "model", e.target.value)}
+                      placeholder="nombre exacto del modelo"
                       className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-                    >
-                      {modelOptions.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
+                    />
+                    <datalist id={`models-${provider.id}`}>
+                      {(liveModels[provider.id]?.length ? liveModels[provider.id]! : modelOptions).map((m) => (
+                        <option key={m} value={m} />
                       ))}
-                    </select>
+                    </datalist>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Modelo que usará el CRM con este proveedor.
+                      {liveModels[provider.id]?.length
+                        ? `${liveModels[provider.id]!.length} modelos en vivo de este proveedor — escribe para filtrar.`
+                        : "Toca “Traer modelos en vivo” (requiere la key guardada) o escribe el nombre."}
                     </p>
                   </div>
 

@@ -56,8 +56,10 @@ export const PUT = withAuth(async (session, req: Request) => {
 });
 
 const postSchema = z.object({
-  op: z.literal("test"),
+  op: z.enum(["test", "models"]),
   model: z.string().trim().max(120).optional(),
+  provider: z.string().trim().max(30).optional(),
+  apiKey: z.string().trim().max(200).optional(),
 });
 
 /**
@@ -65,6 +67,55 @@ const postSchema = z.object({
  * si no hay, el entorno global con el mismo orden de fallback que
  * callProvider). Siempre responde 200 con ok:true/false para feedback inline.
  */
+/** Lista de modelos EN VIVO del proveedor (GET /models compatible con
+ *  OpenAI): acaba con los catálogos quemados que envejecen. */
+export const PATCH = withAuth(async (session, req: Request) => {
+  const body = await parseBody(
+    req,
+    z.object({
+      provider: z.string().trim().min(1).max(30),
+      apiKey: z.string().trim().max(200).optional(),
+    })
+  );
+  if (!body.ok) return body.response;
+
+  const settings = await getAiSettings(session.organizationId);
+  const apiKey = body.data.apiKey?.trim() || settings?.apiKey || "";
+  const provider = body.data.provider;
+  const baseUrl = (
+    PRESET_BASE_URLS[provider] ??
+    (provider === settings?.provider ? settings?.baseUrl : "") ??
+    ""
+  ).replace(/\/+$/, "");
+  if (!baseUrl || !apiKey) {
+    return Response.json({ ok: false, models: [], detail: "Guarda primero la API key del proveedor." });
+  }
+  const modelsUrl = /\/v1$|\/api$/.test(baseUrl) ? `${baseUrl}/models` : `${baseUrl}/v1/models`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const res = await fetch(modelsUrl, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      return Response.json({ ok: false, models: [], detail: `El proveedor respondió ${res.status}` });
+    }
+    const json = (await res.json()) as { data?: { id?: string }[] };
+    const ids = (json.data ?? [])
+      .map((m) => (typeof m?.id === "string" ? m.id : ""))
+      .filter(Boolean)
+      .sort()
+      .slice(0, 300);
+    return Response.json({ ok: true, models: ids });
+  } catch {
+    return Response.json({ ok: false, models: [], detail: "No se pudo consultar la lista de modelos." });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 export const POST = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, postSchema);
   if (!body.ok) return body.response;
