@@ -125,3 +125,54 @@ export const MOBILE_TABS: NavItem[] = [
   { href: "/calendar", label: "Agenda", icon: Calendar },
   { href: "/contacts", label: "Contactos", icon: Users },
 ];
+
+/* ============================================================
+ * Modo personal DuqueLabs: tu CRM de 6 destinos. Los ~47 módulos
+ * enterprise no se eliminan — viven en la hoja "Más" y en el
+ * botón "Ver todos los módulos" del sidebar.
+ * ============================================================ */
+
+/** localStorage: "false" desactiva el modo personal (modo completo). */
+export const PERSONAL_MODE_KEY = "duquelabs_personal_mode";
+/** Evento que avisa a las navigaciones que cambió el modo. */
+export const PERSONAL_MODE_EVENT = "duquelabs-mode";
+
+export function isPersonalMode(): boolean {
+  if (typeof window === "undefined") return true; // por defecto: lo tuyo
+  try {
+    return localStorage.getItem(PERSONAL_MODE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+/** Los 6 destinos del plan personal (Correos entra cuando exista Gmail). */
+export const PERSONAL_NAV: NavItem[] = [
+  { href: "/dashboard", label: "Hoy", icon: LayoutDashboard },
+  { href: "/calendar", label: "Agenda", icon: Calendar },
+  { href: "/tasks", label: "Tareas", icon: CheckSquare },
+  { href: "/vault", label: "Bóveda", icon: Database },
+  { href: "/notes", label: "Bóveda de ideas", icon: StickyNote },
+  { href: "/contacts", label: "Contactos", icon: Users },
+];
+
+const PERSONAL_HREFS = PERSONAL_NAV.map((i) => i.href);
+
+/** Tab bar en modo personal: 4 tuyos + "Más". */
+export const PERSONAL_MOBILE_TABS: NavItem[] = [
+  { href: "/dashboard", label: "Hoy", icon: LayoutDashboard },
+  { href: "/calendar", label: "Agenda", icon: Calendar },
+  { href: "/tasks", label: "Tareas", icon: CheckSquare },
+  { href: "/contacts", label: "Contactos", icon: Users },
+];
+
+/** Hoja "Más" en modo personal: "Lo tuyo" arriba + el resto agrupado. */
+export function personalSheetCategories(): NavCategory[] {
+  return [
+    { label: "Lo tuyo", items: PERSONAL_NAV },
+    ...NAV_CATEGORIES.map((c) => ({
+      label: c.label,
+      items: c.items.filter((i) => !PERSONAL_HREFS.includes(i.href)),
+    })).filter((c) => c.items.length > 0),
+  ];
+}

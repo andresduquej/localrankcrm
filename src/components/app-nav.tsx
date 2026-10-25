@@ -56,7 +56,7 @@ import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { getActiveWorkspaceId, loadFromStorage } from "@/lib/local-storage";
 import { useEvents } from "@/components/use-events";
-import { NAV_CATEGORIES, ALL_NAV } from "@/lib/nav";
+import { NAV_CATEGORIES, ALL_NAV, PERSONAL_MODE_EVENT, PERSONAL_NAV, isPersonalMode } from "@/lib/nav";
 
 const DEFAULT_MAIN_HREFS = ["/dashboard", "/radar", "/lead-finder", "/cold-contacts", "/contacts", "/pipeline", "/inbox", "/tasks", "/ai-hub", "/analytics"];
 
@@ -77,8 +77,24 @@ export function AppNav({
   const [mainHrefs, setMainHrefs] = useState<string[]>(DEFAULT_MAIN_HREFS);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeWsName, setActiveWsName] = useState("");
+  const [personal, setPersonal] = useState(true);
   const isPreview = pathname.startsWith("/preview");
   const prefix = isPreview ? "/preview" : "";
+
+  // Modo personal (por defecto): 6 destinos tuyos; el resto a un botón.
+  useEffect(() => {
+    setPersonal(isPersonalMode());
+    const onMode = () => setPersonal(isPersonalMode());
+    window.addEventListener(PERSONAL_MODE_EVENT, onMode);
+    return () => window.removeEventListener(PERSONAL_MODE_EVENT, onMode);
+  }, []);
+
+  function setModePersonal(v: boolean) {
+    try {
+      localStorage.setItem("duquelabs_personal_mode", String(v));
+    } catch {}
+    window.dispatchEvent(new Event(PERSONAL_MODE_EVENT));
+  }
 
   // Load workspace name from localStorage
   useEffect(() => {
@@ -148,13 +164,33 @@ export function AppNav({
         <button onClick={() => { const e = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }); window.dispatchEvent(e); }} className="flex items-center gap-[11px] rounded-lg px-3 py-2 text-sm font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors mb-1">
           <Search className="h-[18px] w-[18px]" strokeWidth={1.7} /><span className="flex-1">Buscar...</span><kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-mono text-white/40">⌘K</kbd>
         </button>
-        {/* Dashboard — always visible */}
+        {/* Dashboard / Hoy — siempre visible */}
         <Link href={`${prefix}/dashboard`} className={cn("flex items-center gap-[11px] rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", (pathname === `${prefix}/dashboard` || pathname === "/dashboard") ? "bg-[var(--sidebar-active)] border-l-[3px] border-[var(--sidebar-active-text)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
-          <LayoutDashboard className="h-[18px] w-[18px]" strokeWidth={1.7} /><span>Dashboard</span>
+          <LayoutDashboard className="h-[18px] w-[18px]" strokeWidth={1.7} /><span>{personal ? "Hoy" : "Dashboard"}</span>
         </Link>
 
-        {/* Categories */}
-        {NAV_CATEGORIES.map(cat => {
+        {personal ? (
+          /* Modo personal: solo lo tuyo, del tamaño de tu día. */
+          <div className="mt-1 space-y-0.5">
+            {PERSONAL_NAV.filter(i => i.href !== "/dashboard").map(item => {
+              const href = `${prefix}${item.href}`;
+              const active = pathname === href || pathname.startsWith(`${href}/`) || pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link key={item.href} href={href} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-2 text-[13px] font-medium transition-colors", active ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
+                  <item.icon className="h-[15px] w-[15px] text-white/50" strokeWidth={1.5} />
+                  <span className="flex-1">{item.label}</span>
+                </Link>
+              );
+            })}
+            <button onClick={() => setModePersonal(false)} className="mt-2 flex w-full items-center gap-[10px] rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white/70 hover:bg-white/5">
+              <Menu className="h-[13px] w-[13px]" strokeWidth={1.7} />
+              <span className="flex-1 text-left">Ver todos los módulos</span>
+            </button>
+          </div>
+        ) : (
+          /* Modo completo: todas las categorías. */
+          <>
+          {NAV_CATEGORIES.map(cat => {
           const isExpanded = expandedCats.has(cat.label);
           const hasActive = cat.items.some(item => pathname === `${prefix}${item.href}` || pathname === item.href || pathname.startsWith(`${prefix}${item.href}/`));
           return (
@@ -183,6 +219,12 @@ export function AppNav({
             </div>
           );
         })}
+          <button onClick={() => setModePersonal(true)} className="mt-2 flex w-full items-center gap-[10px] rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white/70 hover:bg-white/5">
+            <Menu className="h-[13px] w-[13px]" strokeWidth={1.7} />
+            <span className="flex-1 text-left">Volver al modo personal</span>
+          </button>
+          </>
+        )}
       </nav>
 
       <div className="flex-1" />

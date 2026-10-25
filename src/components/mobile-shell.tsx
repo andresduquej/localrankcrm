@@ -15,7 +15,15 @@ import {
 } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
-import { ALL_NAV, MOBILE_TABS, NAV_CATEGORIES } from "@/lib/nav";
+import {
+  ALL_NAV,
+  MOBILE_TABS,
+  NAV_CATEGORIES,
+  PERSONAL_MOBILE_TABS,
+  PERSONAL_MODE_EVENT,
+  isPersonalMode,
+  personalSheetCategories,
+} from "@/lib/nav";
 import { useEvents } from "@/components/use-events";
 
 /**
@@ -23,7 +31,8 @@ import { useEvents } from "@/components/use-events";
  * la sección, tab bar inferior con blur y la hoja "Más" (una sheet que sube
  * con curva de resorte) que contiene TODOS los módulos del CRM agrupados y
  * buscables. No elimina secciones: las que no caben en la tab bar viven en
- * la hoja.
+ * la hoja. En modo personal (por defecto) la tab bar es lo tuyo: Hoy,
+ * Agenda, Tareas, Contactos.
  */
 export function MobileShell({ userName, role }: { userName: string; role: string }) {
   const pathname = usePathname();
@@ -32,6 +41,16 @@ export function MobileShell({ userName, role }: { userName: string; role: string
   const [moreOpen, setMoreOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [unread, setUnread] = useState(0);
+  const [personal, setPersonal] = useState(true);
+
+  useEffect(() => {
+    setPersonal(isPersonalMode());
+    const onMode = () => setPersonal(isPersonalMode());
+    window.addEventListener(PERSONAL_MODE_EVENT, onMode);
+    return () => window.removeEventListener(PERSONAL_MODE_EVENT, onMode);
+  }, []);
+
+  const tabs = personal ? PERSONAL_MOBILE_TABS : MOBILE_TABS;
 
   // Título de la sección actual para la cabecera (large title compacto)
   const title = useMemo(() => {
@@ -82,12 +101,15 @@ export function MobileShell({ userName, role }: { userName: string; role: string
 
   const q = query.trim().toLowerCase();
   const categories = useMemo(() => {
-    if (!q) return NAV_CATEGORIES;
-    return NAV_CATEGORIES.map((c) => ({
-      label: c.label,
-      items: c.items.filter((i) => i.label.toLowerCase().includes(q)),
-    })).filter((c) => c.items.length > 0);
-  }, [q]);
+    const base = personal ? personalSheetCategories() : NAV_CATEGORIES;
+    if (!q) return base;
+    return base
+      .map((c) => ({
+        label: c.label,
+        items: c.items.filter((i) => i.label.toLowerCase().includes(q)),
+      }))
+      .filter((c) => c.items.length > 0);
+  }, [q, personal]);
 
   const isActive = (href: string) =>
     pathname === `${prefix}${href}` ||
@@ -124,7 +146,7 @@ export function MobileShell({ userName, role }: { userName: string; role: string
         style={{ paddingBottom: "var(--safe-bottom)" }}
       >
         <div className="flex items-stretch justify-around px-1 pt-1.5 pb-1">
-          {MOBILE_TABS.map((tab) => {
+          {tabs.map((tab) => {
             const active = isActive(tab.href);
             return (
               <Link
