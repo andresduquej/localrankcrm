@@ -147,7 +147,7 @@ export function BlurWrapper({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative h-full">
       {children}
-      <button onClick={toggle} className="fixed bottom-20 right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70 text-white shadow hover:bg-gray-900 transition-colors md:right-20" title="Activar blur">
+      <button onClick={toggle} className="fixed bottom-[calc(148px+var(--safe-bottom))] right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-gray-800/70 text-white shadow hover:bg-gray-900 transition-colors md:right-20" title="Activar blur">
         <EyeOff className="h-3.5 w-3.5" />
       </button>
     </div>

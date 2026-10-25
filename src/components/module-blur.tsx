@@ -46,7 +46,7 @@ export function ModuleBlur({ moduleId, children, label, reason = "privacy" }: Pr
         {/* Toggle button */}
         <button
           onClick={toggle}
-          className="fixed bottom-20 right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900/80 text-white shadow-lg hover:bg-gray-900 transition-colors md:bottom-20 md:right-20"
+          className="fixed bottom-[calc(148px+var(--safe-bottom))] right-4 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900/80 text-white shadow-lg hover:bg-gray-900 transition-colors md:bottom-20 md:right-20"
           title="Activar blur (privacidad)"
         >
           <EyeOff className="h-3.5 w-3.5" />

@@ -41,8 +41,26 @@ const PRIORIDAD = {
   low: { label: "🌿 Baja", cls: "bg-brand-tint text-brand" },
 } as const;
 
+/** "3.5 h", "2 días"… a partir de milisegundos. */
+function formatearTiempo(ms: number | null): string {
+  if (ms === null) return "—";
+  const h = ms / 3600_000;
+  if (h < 1) return `${Math.max(1, Math.round(ms / 60_000))} min`;
+  if (h < 24) return `${h % 1 === 0 ? h : h.toFixed(1)} h`;
+  const d = h / 24;
+  return `${d % 1 === 0 ? d : d.toFixed(1)} d`;
+}
+
 export default function TasksPage() {
   const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [stats, setStats] = useState<null | {
+    mes: string;
+    completadasMes: number;
+    completadasHoy: number;
+    pendientes: number;
+    tasa: number | null;
+    tiempoPromedioMs: number | null;
+  }>(null);
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [texto, setTexto] = useState("");
   const [creando, setCreando] = useState(false);
@@ -58,6 +76,10 @@ export default function TasksPage() {
     fetch("/api/tasks")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setTareas(Array.isArray(d?.tasks) ? d.tasks : []))
+      .catch(() => {});
+    fetch("/api/tasks/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStats(d ?? null))
       .catch(() => {});
   }
 
@@ -116,6 +138,10 @@ export default function TasksPage() {
       body: JSON.stringify({ id, done: true }),
     }).catch(() => {});
   }
+    fetch("/api/tasks/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStats(d ?? null))
+      .catch(() => {});
 
   async function eliminar(id: string) {
     setTareas((prev) => prev.filter((t) => t.id !== id));
@@ -181,6 +207,36 @@ export default function TasksPage() {
         {feedback && (
           <div className="rounded-xl border border-brand/30 bg-brand-tint/40 px-3 py-2 text-center text-xs font-medium">
             {feedback}
+          </div>
+        )}
+
+        {/* Tu mes: cuántas hechas, cuántas pendientes y a qué ritmo */}
+        {stats && (stats.completadasMes > 0 || stats.pendientes > 0) && (
+          <div className="rounded-[24px] border bg-white p-4 shadow-sm dark:bg-gray-900">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold capitalize">Tu mes · {stats.mes}</h3>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {stats.completadasHoy > 0 ? `${stats.completadasHoy} hecha${stats.completadasHoy > 1 ? "s" : ""} hoy 🔥` : "sin completadas hoy"}
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="rounded-2xl bg-[#34c759]/10 p-2.5">
+                <b className="block text-xl font-extrabold text-[#1d7f3d]">{stats.completadasMes}</b>
+                <span className="text-[10px] font-bold text-[#1d7f3d]">hechas</span>
+              </div>
+              <div className="rounded-2xl bg-brand-tint p-2.5">
+                <b className="block text-xl font-extrabold text-brand">{stats.pendientes}</b>
+                <span className="text-[10px] font-bold text-brand">pendientes</span>
+              </div>
+              <div className="rounded-2xl bg-[#ff9f0a]/10 p-2.5">
+                <b className="block text-xl font-extrabold text-[#c25e00]">{stats.tasa === null ? "—" : `${stats.tasa}%`}</b>
+                <span className="text-[10px] font-bold text-[#c25e00]">tasa</span>
+              </div>
+              <div className="rounded-2xl bg-muted p-2.5">
+                <b className="block text-xl font-extrabold">{formatearTiempo(stats.tiempoPromedioMs)}</b>
+                <span className="text-[10px] font-bold text-muted-foreground">promedio</span>
+              </div>
+            </div>
           </div>
         )}
 
