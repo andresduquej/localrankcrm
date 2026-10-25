@@ -4,41 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Building2,
+  Calendar,
   CheckSquare,
   ChevronRight,
-  DollarSign,
+  Database,
+  Github,
+  Globe,
   MessageSquare,
-  Plus,
-  Target,
-  TrendingUp,
   UserCircle,
+  Wrench,
 } from "lucide-react";
 
-const STATS = [
-  { label: "Compañías", value: "24", icon: Building2, change: "+3 esta semana" },
-  { label: "Personas", value: "156", icon: UserCircle, change: "+12 este mes" },
-  { label: "Oportunidades", value: "18", icon: Target, change: "$245K pipeline" },
-  { label: "Tareas pendientes", value: "7", icon: CheckSquare, change: "3 vencen hoy" },
-  { label: "Conversaciones", value: "42", icon: MessageSquare, change: "5 sin responder" },
-  { label: "Ingresos mes", value: "$32.5K", icon: DollarSign, change: "+15% vs anterior" },
-];
+/**
+ * Hoy — tu día real: KPIs vivos (citas, tareas, contactos, mensajes),
+ * agenda y tareas del mayordomo, bóveda y comandos del bot.
+ * Cero datos demo: todo viene de las APIs del CRM.
+ */
 
-const RECENT_ACTIVITY = [
-  { type: "deal", text: "Nueva oportunidad: Contrato Enterprise con TechCorp", time: "Hace 2h" },
-  { type: "task", text: "Tarea completada: Enviar propuesta a MediaGroup", time: "Hace 3h" },
-  { type: "contact", text: "Nuevo contacto: María García — LogiNext", time: "Hace 5h" },
-  { type: "message", text: "Mensaje de WhatsApp: Carlos Ruiz respondió a cotización", time: "Hace 6h" },
-  { type: "note", text: "Nota añadida: Seguimiento reunión con InnovateLab", time: "Ayer" },
-  { type: "deal", text: "Oportunidad cerrada ganada: Paquete Premium — $12K", time: "Ayer" },
-];
-
-const TOP_OPPORTUNITIES = [
-  { name: "Contrato Enterprise TechCorp", value: "$85,000", stage: "Negociación", probability: 75 },
-  { name: "Licencia Anual MediaGroup", value: "$45,000", stage: "Propuesta", probability: 60 },
-  { name: "Implementación LogiNext", value: "$32,000", stage: "Calificación", probability: 40 },
-  { name: "Consultoría InnovateLab", value: "$28,000", stage: "Descubrimiento", probability: 25 },
-];
+type VaultLight = { id: string; type: string; title: string; url: string };
 
 type Cita = {
   title: string;
@@ -97,6 +80,9 @@ export default function DashboardPage() {
   const [nombre, setNombre] = useState("Andres");
   const [citas, setCitas] = useState<Cita[]>([]);
   const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [nContactos, setNContactos] = useState<number | null>(null);
+  const [sinLeer, setSinLeer] = useState<number | null>(null);
+  const [boveda, setBoveda] = useState<VaultLight[]>([]);
 
   async function alternarTarea(id: string, done: boolean) {
     // Optimista: quita/repone la fila según el resultado del PATCH.
@@ -147,11 +133,44 @@ export default function DashboardPage() {
         if (Array.isArray(d?.tasks)) setTareas(d.tasks.slice(0, 5));
       })
       .catch(() => {});
+
+    // KPIs vivos: contactos, mensajes sin leer y bóveda
+    fetch("/api/contacts")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setNContactos(Array.isArray(d?.contacts) ? d.contacts.length : 0))
+      .catch(() => setNContactos(0));
+
+    fetch("/api/conversations")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const convs = Array.isArray(d?.conversations) ? d.conversations : [];
+        setSinLeer(
+          convs.reduce((a: number, c: { unreadCount?: number }) => a + (c.unreadCount ?? 0), 0)
+        );
+      })
+      .catch(() => setSinLeer(0));
+
+    fetch("/api/vault")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setBoveda(Array.isArray(d?.items) ? d.items.slice(0, 3) : []))
+      .catch(() => {});
   }, []);
 
   const proximas = [...citas].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const citasHoy = proximas.filter((c) => esHoyBogota(c.startsAt)).length;
   const hoy = bogota(new Date());
+  const ahora = Date.now();
+  const vencidas = tareas.filter(
+    (t) => t.dueDate && !Number.isNaN(new Date(t.dueDate).getTime()) && new Date(t.dueDate).getTime() < ahora
+  ).length;
+
+  /** KPIs reales del día (nada quemado). */
+  const STATS = [
+    { label: "Citas hoy", value: String(citasHoy), icon: Calendar, change: citasHoy > 0 ? "en tu agenda" : "agenda libre", ok: true },
+    { label: "Tareas pendientes", value: String(tareas.length), icon: CheckSquare, change: vencidas > 0 ? `${vencidas} vencida${vencidas > 1 ? "s" : ""}` : "al día", ok: vencidas === 0 },
+    { label: "Contactos", value: nContactos === null ? "—" : String(nContactos), icon: UserCircle, change: "en tu red", ok: true },
+    { label: "Sin leer", value: sinLeer === null ? "—" : String(sinLeer), icon: MessageSquare, change: (sinLeer ?? 0) > 0 ? "te esperan" : "todo leído", ok: (sinLeer ?? 0) === 0 },
+  ];
 
   return (
     <div className="h-full overflow-y-auto p-4 md:p-6">
@@ -180,7 +199,9 @@ export default function DashboardPage() {
               </div>
               <p className="text-[22px] font-extrabold leading-tight tracking-tight md:text-[26px]">{stat.value}</p>
               <p className="mt-0.5 text-xs font-medium text-muted-foreground">{stat.label}</p>
-              <span className="mt-2 inline-block rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-bold text-green-700">
+              <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                stat.ok ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+              }`}>
                 {stat.change}
               </span>
             </div>
@@ -222,14 +243,9 @@ export default function DashboardPage() {
                   );
                 })
               )}
-              <Link
-                href={`${prefix}/opportunities`}
-                className="mt-3 block rounded-xl bg-brand px-4 py-2.5 text-center text-sm font-bold text-white shadow-sm transition-transform active:scale-[0.98]"
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <Plus className="h-4 w-4" strokeWidth={2.5} /> Nueva oportunidad
-                </span>
-              </Link>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                Agenda más con tu bot: <code className="rounded bg-muted px-1.5 py-0.5">/cita reunión mañana 3pm</code>
+              </p>
             </div>
 
             {/* Tareas de hoy (las crea el bot de Telegram con /tarea) */}
@@ -260,44 +276,59 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-4 md:gap-6">
-            {/* Actividad reciente */}
+            {/* En tu bóveda — recursos guardados de verdad */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
-              <h3 className="mb-4 font-semibold">Actividad reciente</h3>
-              <div className="space-y-3">
-                {RECENT_ACTIVITY.map((activity, i) => (
-                  <div key={i} className="flex items-start gap-3 border-b pb-3 last:border-0 last:pb-0">
-                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand" />
-                    <div className="flex-1">
-                      <p className="text-sm">{activity.text}</p>
-                      <p className="text-xs text-muted-foreground">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+              <div className="mb-1 flex items-center justify-between">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <Database className="h-4 w-4 text-brand" /> En tu bóveda
+                </h3>
+                <Link href={`${prefix}/vault`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
+                  Ver bóveda <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
+              {boveda.length === 0 ? (
+                <p className="py-4 text-sm text-muted-foreground">
+                  Nada guardado aún — agrega repos, páginas o herramientas en la Bóveda.
+                </p>
+              ) : (
+                boveda.map((item) => {
+                  const Icono = item.type === "repo" ? Github : item.type === "herramienta" ? Wrench : Globe;
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-tint text-brand">
+                        <Icono className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <b className="block truncate text-sm font-semibold">{item.title}</b>
+                        {item.url && (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="block truncate text-xs text-brand hover:underline">
+                            {item.url}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            {/* Top oportunidades */}
+            {/* Comandos de tu mayordomo (Telegram) */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
-              <h3 className="mb-4 flex items-center gap-2 font-semibold">
-                <TrendingUp className="h-4 w-4 text-brand" />
-                Top oportunidades
-              </h3>
-              <div className="space-y-3">
-                {TOP_OPPORTUNITIES.map((opp) => (
-                  <div key={opp.name} className="rounded-xl border p-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                      <span className="min-w-0 flex-1 text-sm font-medium">{opp.name}</span>
-                      <span className="text-sm font-bold text-brand">{opp.value}</span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="whitespace-nowrap rounded bg-muted px-2 py-0.5 text-xs">{opp.stage}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="h-1.5 w-full rounded-full bg-gray-100">
-                          <div className="h-1.5 rounded-full bg-brand" style={{ width: `${opp.probability}%` }} />
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{opp.probability}%</span>
-                    </div>
+              <h3 className="mb-2 font-semibold">Háblale a tu mayordomo 🤖</h3>
+              <p className="mb-3 text-xs text-muted-foreground">
+                En Telegram, mándale esto a tu bot y queda en tu CRM al instante:
+              </p>
+              <div className="space-y-1.5 text-sm">
+                {[
+                  ["/cita reunión con Juan mañana 3pm", "agenda la cita y te avisa 1h antes"],
+                  ["/tarea llamar a María urgente 30 min", "crea la tarea y te fastidia hasta hacerla"],
+                  ["/pendientes", "te lista todo lo pendiente"],
+                  ["/listo llamar a maría", "marca la tarea hecha"],
+                ].map(([cmd, desc]) => (
+                  <div key={cmd} className="flex flex-col gap-0.5 rounded-xl bg-muted/50 px-3 py-2 sm:flex-row sm:items-center sm:gap-3">
+                    <code className="shrink-0 text-xs font-semibold">{cmd}</code>
+                    <span className="hidden text-xs text-muted-foreground sm:inline">·</span>
+                    <span className="text-xs text-muted-foreground">{desc}</span>
                   </div>
                 ))}
               </div>

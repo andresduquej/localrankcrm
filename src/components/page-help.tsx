@@ -41,7 +41,9 @@ export function PageHelp() {
   if (!help) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 md:bottom-6 md:left-[270px] z-50">
+    // En móvil flota POR ENCIMA de la tab bar (bottom-24); en desktop,
+    // junto al sidebar.
+    <div className="fixed bottom-[88px] left-4 md:bottom-6 md:left-[270px] z-50">
       {open && (
         <div className="absolute bottom-14 left-0 w-72 md:w-80 rounded-lg border bg-white p-4 md:p-5 shadow-xl animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-start justify-between mb-2">
