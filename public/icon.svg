@@ -8,8 +8,9 @@
   </defs>
   <!-- Fondo redondeado (iOS no recorta: el cuadrado ya viene redondeado) -->
   <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <!-- "L" de LocalRank -->
-  <path d="M186 128 v236 c0 12 8 20 20 20 h118 c14 0 24-10 24-24 s-10-24-24-24 h-90 V128 c0-14-10-24-24-24 s-24 10-24 24 z" fill="#ffffff"/>
-  <!-- Chispa de ventas: flecha ascendente -->
-  <path d="M300 128 l44 0 0 44 -14-14 -34 34 c-8 8-20 8-28 0 s-8-20 0-28 l34-34 z" fill="#7db4ff" opacity="0.95"/>
+  <!-- "D" de DuqueLabs: barra + cuenco trazados con extremos redondeados -->
+  <path d="M166 128 V384 M166 128 h14 c84 0 140 56 140 128 s-56 128 -140 128 h-14"
+        stroke="#ffffff" stroke-width="48" stroke-linecap="round" fill="none"/>
+  <!-- Chispa dentro del contracurvo -->
+  <path d="M300 214 l32 0 0 32 -11-11 -25 25 c-6 6-16 6-22 0 s-6-16 0-22 l26-24 z" fill="#7db4ff"/>
 </svg>

@@ -31,7 +31,7 @@ export const PRESET_BASE_URLS: Record<string, string> = {
 /** Modelo por defecto cuando la fila no guarda uno (proveedores principales). */
 const DEFAULT_MODELS: Record<string, string> = {
   openrouter: "openrouter/auto",
-  groq: "llama-3.3-70b-versatile",
+  groq: "openai/gpt-oss-120b",
   nvidia: "nvidia/llama-3.1-nemotron-70b",
   openai: "gpt-4o-mini",
 };

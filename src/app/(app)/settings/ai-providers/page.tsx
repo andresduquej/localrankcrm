@@ -125,7 +125,7 @@ const AI_PROVIDERS: Provider[] = [
     description: "Inferencia ultra-rápida en hardware LPU: Llama, Mixtral",
     baseUrl: "https://api.groq.com/openai/v1",
     docsUrl: "https://console.groq.com/docs",
-    models: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"],
     free: true,
   },
   {
