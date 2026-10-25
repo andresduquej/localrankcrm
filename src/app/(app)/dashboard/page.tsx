@@ -108,27 +108,31 @@ export default function DashboardPage() {
   const [avisoUrl, setAvisoUrl] = useState("");
 
   async function alternarTarea(id: string, done: boolean) {
-    // Optimista: quita/repone la fila según el resultado del PATCH.
+    // Optimista: quita la fila; si el servidor falla, la repone tal cual.
+    const copia = tareas.find((t) => t.id === id);
     setTareas((prev) => prev.filter((t) => t.id !== id));
     const res = await fetch("/api/tasks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, done }),
     }).catch(() => null);
-    if (!res?.ok) {
-      setTareas((prev) => prev);
+    if (!res?.ok && copia) {
+      setTareas((prev) => [...prev, copia]);
     }
   }
 
   useEffect(() => {
-    // Citas de cortesía mientras cargan las reales (o en modo demo)
-    const base = new Date();
-    const mk = (h: number, title: string, notes: string): Cita => {
-      const d = new Date(base);
-      d.setHours(h, 0, 0, 0);
-      return { title, startsAt: d.toISOString(), notes };
-    };
-    setCitas([mk(11, "Reunión con Juan Pérez", "Propuesta · Cafe Velázquez"), mk(15, "Llamada de seguimiento", "María Gómez · Dental Sonrisa")]);
+    // Citas de cortesía SOLO en el preview/demo: en la app real el Hoy es
+    // 100% datos de la BD — si no hay citas, se muestra el estado vacío.
+    if (window.location.pathname.startsWith("/preview")) {
+      const base = new Date();
+      const mk = (h: number, title: string, notes: string): Cita => {
+        const d = new Date(base);
+        d.setHours(h, 0, 0, 0);
+        return { title, startsAt: d.toISOString(), notes };
+      };
+      setCitas([mk(11, "Reunión con Juan Pérez", "Propuesta · Cafe Velázquez"), mk(15, "Llamada de seguimiento", "María Gómez · Dental Sonrisa")]);
+    }
 
     // TODO el dashboard en una sola petición
     fetch("/api/overview")

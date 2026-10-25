@@ -16,9 +16,12 @@ export function BackupReminder() {
       const hour = now.getHours();
       const today = now.toISOString().split("T")[0];
       const dismissed = localStorage.getItem("localrank_backup_reminder_dismissed");
+      const shown = localStorage.getItem("localrank_backup_reminder_shown");
 
-      // Show at 7pm (19:00) if not dismissed today
-      if (hour >= 19 && dismissed !== today) {
+      // Show at 7pm (19:00), UNA sola vez al día: ni el auto-cierre de 45 s
+      // ni el chequeo por minuto vuelven a dispararlo.
+      if (hour >= 19 && shown !== today && dismissed !== today) {
+        localStorage.setItem("localrank_backup_reminder_shown", today!);
         setShow(true);
         // Nunca estorba para siempre: se cierra sola a los 45 segundos
         setTimeout(() => setShow(false), 45_000);

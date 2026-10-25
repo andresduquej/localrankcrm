@@ -79,6 +79,8 @@ export default function VaultPage() {
   const [dictado, setDictado] = useState(""); // texto libre del campo único
   const [entendiendo, setEntendiendo] = useState(false);
   const [grabando, setGrabando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [verArchivados, setVerArchivados] = useState(false);
   const [video, setVideo] = useState<null | {
     fase: "transcribiendo" | "listo";
     transcript?: string;
@@ -91,19 +93,28 @@ export default function VaultPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/vault")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setItems(Array.isArray(d?.items) ? d.items : []))
-      .catch(() => setItems([]))
-      .finally(() => setCargando(false));
+    recargar();
+    // Apaga el micrófono si el usuario sale de la pantalla dictando.
+    return () => {
+      try { recRef.current?.stop?.(); } catch {}
+      try { recRef.current?.abort?.(); } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function recargar() {
-    fetch("/api/vault")
+  function recargar(incluirArchivados = verArchivados) {
+    fetch(`/api/vault${incluirArchivados ? "?includeArchived=true" : ""}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setItems(Array.isArray(d?.items) ? d.items : []))
       .catch(() => {})
       .finally(() => setCargando(false));
+  }
+
+  /** Alterna la lista entre activos y todo (con archivados para restaurar). */
+  function alternarArchivados() {
+    const next = !verArchivados;
+    setVerArchivados(next);
+    recargar(next);
   }
 
   function flash(texto: string) {
@@ -125,7 +136,8 @@ export default function VaultPage() {
   }, [items, filtro, q]);
 
   async function guardar() {
-    if (!editando?.title?.trim()) return;
+    if (!editando?.title?.trim() || guardando) return;
+    setGuardando(true);
     const esNuevo = !editando.id;
     const payload = {
       title: editando.title,
@@ -139,6 +151,7 @@ export default function VaultPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(esNuevo ? payload : { ...payload, id: editando.id }),
     }).catch(() => null);
+    setGuardando(false);
     if (res?.ok) {
       flash(esNuevo ? "Guardado en tus recursos ✅" : "Actualizado ✅");
       setEditando(null);
@@ -564,6 +577,17 @@ export default function VaultPage() {
               className="w-full rounded-xl border bg-white py-2 pl-8 pr-3 text-sm focus:border-brand focus:outline-none dark:bg-gray-900"
             />
           </div>
+          <button
+            type="button"
+            onClick={alternarArchivados}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+              verArchivados
+                ? "bg-brand text-white"
+                : "border bg-white text-muted-foreground dark:bg-gray-900"
+            }`}
+          >
+            {verArchivados ? "Ver archivados: sí" : "Ver archivados"}
+          </button>
         </div>
 
         {/* Revisar actualizaciones (repos) */}
@@ -688,9 +712,10 @@ export default function VaultPage() {
             <button
               type="button"
               onClick={guardar}
-              className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white"
+              disabled={guardando}
+              className="w-full rounded-xl bg-brand py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
-              Guardar en la bóveda
+              {guardando ? "Guardando…" : "Guardar en la bóveda"}
             </button>
           </div>
         )}
