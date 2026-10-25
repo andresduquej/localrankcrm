@@ -178,7 +178,7 @@ export function GlobalSearch() {
         {/* Results */}
         <div className="max-h-[400px] overflow-y-auto">
           {query.trim() && results.length === 0 && (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados para "{query}"</p>
+            <p className="px-4 py-8 text-center text-sm text-muted-foreground">No se encontraron resultados para &quot;{query}&quot;</p>
           )}
 
           {results.length > 0 && (
@@ -227,7 +227,7 @@ export function GlobalSearch() {
               {/* Tip */}
               <div className="flex items-center gap-2 rounded-lg bg-brand/5 px-3 py-2">
                 <Sparkles className="h-3.5 w-3.5 text-brand shrink-0" />
-                <p className="text-[10px] text-muted-foreground">Busca por nombre de contacto, empresa, módulo, o escribe una acción ("nueva tarea", "buscar leads")</p>
+                <p className="text-[10px] text-muted-foreground">Busca por nombre de contacto, empresa, módulo, o escribe una acción (&quot;nueva tarea&quot;, &quot;buscar leads&quot;)</p>
               </div>
             </div>
           )}

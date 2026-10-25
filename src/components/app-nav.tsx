@@ -4,61 +4,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity,
-  BarChart3,
-  Bell,
   Book,
-  Bookmark,
-  Bot,
-  Building2,
-  Calendar,
-  CheckSquare,
   ChevronDown,
-  CircleCheckBig,
-  ClipboardList,
-  Clock,
-  CreditCard,
-  Database,
-  FileText,
-  FlaskConical,
-  FolderKanban,
-  FolderOpen,
-  GitBranch,
-  Heart,
-  History,
-  Kanban,
   LayoutDashboard,
   Lightbulb,
-  Link2,
-  Linkedin,
   LogOut,
-  Mail,
   Menu,
-  MessageSquare,
-  Pin,
   Search,
-  Send,
   Settings,
-  Settings2,
-  Star,
-  StickyNote,
-  Tag,
-  Target,
-  Thermometer,
   Trash2,
-  Users,
-  UsersRound,
-  X,
-  Zap,
 } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { getActiveWorkspaceId, loadFromStorage } from "@/lib/local-storage";
 import { useEvents } from "@/components/use-events";
-import { NAV_CATEGORIES, ALL_NAV, PERSONAL_MODE_EVENT, PERSONAL_NAV, isPersonalMode } from "@/lib/nav";
-
-const DEFAULT_MAIN_HREFS = ["/dashboard", "/radar", "/lead-finder", "/cold-contacts", "/contacts", "/pipeline", "/inbox", "/tasks", "/ai-hub", "/analytics"];
+import { NAV_CATEGORIES, PERSONAL_MODE_EVENT, PERSONAL_NAV, isPersonalMode } from "@/lib/nav";
 
 export function AppNav({
   branding,
@@ -72,9 +33,6 @@ export function AppNav({
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [customizing, setCustomizing] = useState(false);
-  const [mainHrefs, setMainHrefs] = useState<string[]>(DEFAULT_MAIN_HREFS);
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeWsName, setActiveWsName] = useState("");
   const [personal, setPersonal] = useState(true);
@@ -108,9 +66,6 @@ export function AppNav({
       }
     }
   }, []);
-
-  const navMain = ALL_NAV.filter(item => mainHrefs.includes(item.href));
-  const navMore = ALL_NAV.filter(item => !mainHrefs.includes(item.href));
 
   async function refetchUnread() {
     if (isPreview) return;
