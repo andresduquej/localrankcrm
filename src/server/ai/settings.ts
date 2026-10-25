@@ -34,6 +34,8 @@ const DEFAULT_MODELS: Record<string, string> = {
   groq: "openai/gpt-oss-120b",
   nvidia: "nvidia/llama-3.1-nemotron-70b",
   openai: "gpt-4o-mini",
+  // "-latest" se actualiza solo: no vuelve a quedarse viejo como 2.5-pro.
+  google: "gemini-flash-latest",
 };
 
 /** Columnas simples (sin cifrar) que admite el patch. */

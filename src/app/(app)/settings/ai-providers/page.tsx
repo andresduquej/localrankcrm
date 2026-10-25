@@ -51,7 +51,7 @@ const AI_PROVIDERS: Provider[] = [
     description: "Gemini 2.5 Pro, Flash, y modelos multimodales",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     docsUrl: "https://ai.google.dev/docs",
-    models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+    models: ["gemini-flash-latest", "gemini-3.8-flash", "gemini-3.1-pro-preview"],
   },
   {
     id: "xai",
