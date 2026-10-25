@@ -8,6 +8,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { UpdateBanner } from "@/components/update-banner";
 import { UndoToast } from "@/components/undo-toast";
 import PushRegister from "@/components/push-register";
+import { AppearanceBoot } from "@/components/appearance-boot";
 
 export default function AppLayout({
   children,
@@ -23,6 +24,7 @@ export default function AppLayout({
       <AiAssistant />
       <UndoToast />
       <PushRegister />
+      <AppearanceBoot />
     </div>
   );
 }

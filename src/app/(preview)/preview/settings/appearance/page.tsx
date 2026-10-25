@@ -28,7 +28,16 @@ export default function AppearancePage() {
   const [ap, setAp] = useState<Appearance>(DEFAULT_APPEARANCE);
 
   useEffect(() => {
-    const stored = loadFromStorage("appearance_config", DEFAULT);
+    // Llave única compartida con el toggle del sidebar: lo que guardas aquí
+    // es exactamente lo que la app aplica al arrancar.
+    let stored = DEFAULT;
+    try {
+      const raw = localStorage.getItem("localrank_appearance_config");
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<AppearanceConfig>;
+        stored = { theme: parsed.theme === "dark" || parsed.theme === "light" ? parsed.theme : "system", language: parsed.language ?? "es" };
+      }
+    } catch {}
     setConfig(stored);
     applyTheme(stored.theme);
     const loaded = loadAppearance();
@@ -62,11 +71,11 @@ export default function AppearancePage() {
   function handleThemeChange(theme: AppearanceConfig["theme"]) {
     setConfig({ ...config, theme });
     applyTheme(theme);
-    saveToStorage("appearance_config", { ...config, theme });
+    try { localStorage.setItem("localrank_appearance_config", JSON.stringify({ ...config, theme })); } catch {}
   }
 
   function handleSave() {
-    saveToStorage("appearance_config", config);
+    try { localStorage.setItem("localrank_appearance_config", JSON.stringify(config)); } catch {}
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
