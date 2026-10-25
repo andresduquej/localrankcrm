@@ -257,28 +257,68 @@ export default function DashboardPage() {
           </div>
         </Link>
 
-        {/* ── Chips tocables: cada uno navega a su mundo ── */}
-        <div className="mb-4 grid grid-cols-3 gap-2.5 md:mb-5 md:grid-cols-4 md:gap-3">
+        {/* ── Cuatro accesos: solo el ícono con su conteo ── */}
+        <div className="mb-4 flex items-start justify-between px-2 md:mb-5 md:justify-start md:gap-8 md:px-6">
           {[
-            { href: "/calendar", n: citasHoy, label: "Citas hoy", emoji: "📅", tint: "bg-[#ff9f0a]/12 text-[#c25e00] dark:text-[#ffb340]" },
-            { href: "/contacts", n: nContactos, label: "Contactos", emoji: "👤", tint: "bg-[#5856d6]/12 text-[#403ed8] dark:text-[#8f8dff]" },
-            { href: "/inbox", n: sinLeer, label: "Sin leer", emoji: "💬", tint: "bg-[#30b0c7]/12 text-[#1d7f94] dark:text-[#5ed4e8]" },
-            { href: "/vault", n: boveda.length, label: "Bóveda", emoji: "🗂", tint: "bg-brand-tint text-brand" },
-          ].map((chip) => (
+            { href: "/calendar", n: citasHoy, label: "Citas hoy", emoji: "📅", tint: "bg-[#ff9f0a]/15 text-[16px]" },
+            { href: "/contacts", n: nContactos, label: "Contactos", emoji: "👤", tint: "bg-[#5856d6]/15 text-[16px]" },
+            { href: "/inbox", n: sinLeer, label: "Sin leer", emoji: "💬", tint: "bg-[#30b0c7]/15 text-[16px]" },
+            { href: "/vault", n: boveda.length, label: "Bóveda", emoji: "🗂", tint: "bg-brand-tint text-[16px]" },
+          ].map((acceso) => (
             <Link
-              key={chip.href}
-              href={`${prefix}${chip.href}`}
-              className="rounded-3xl border bg-white p-3.5 shadow-sm transition-transform active:scale-[0.95] md:p-4 dark:bg-gray-900"
+              key={acceso.href}
+              href={`${prefix}${acceso.href}`}
+              className="flex w-16 flex-col items-center gap-1.5 transition-transform active:scale-90"
             >
-              <span className={`mb-2 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-[16px] ${chip.tint}`}>
-                {chip.emoji}
+              <span className={`relative flex h-[52px] w-[52px] items-center justify-center rounded-full ${acceso.tint}`}>
+                {acceso.emoji}
+                {acceso.n !== null && acceso.n > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#ff3b30] px-1 text-[10px] font-extrabold text-white shadow-sm">
+                    {acceso.n > 99 ? "99+" : acceso.n}
+                  </span>
+                )}
               </span>
-              <b className="block text-[22px] font-extrabold leading-none tracking-tight md:text-[24px]">
-                {chip.n === null ? "—" : chip.n}
-              </b>
-              <span className="mt-1 block text-[11px] font-semibold text-muted-foreground">{chip.label}</span>
+              <span className="text-[10px] font-semibold text-muted-foreground">{acceso.label}</span>
             </Link>
           ))}
+        </div>
+
+        {/* ── Próximas citas — alimentadas por el bot de Telegram ── */}
+        <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm md:mb-6 md:p-5 dark:bg-gray-900">
+          <div className="mb-1 flex items-center justify-between">
+            <h3 className="font-semibold">Próximas citas</h3>
+            <Link href={`${prefix}/calendar`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
+              Ver agenda <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {proximas.length === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              Sin citas agendadas. Háblale a tu bot de Telegram:{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/cita reunión mañana 3pm</code>
+            </p>
+          ) : (
+            proximas.map((cita) => {
+              const f = bogota(new Date(cita.startsAt));
+              return (
+                <div key={cita.startsAt + cita.title} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
+                  <div className="flex h-[52px] w-[48px] shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-tint text-brand-text">
+                    <b className="text-[17px] leading-none">{f.dia}</b>
+                    <span className="text-[10px] font-semibold uppercase">{f.mesCorto}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <b className="block text-sm font-semibold leading-snug line-clamp-2 md:line-clamp-none">{cita.title}</b>
+                    <small className="text-xs text-muted-foreground">
+                      {f.hora}
+                      {cita.notes ? ` · ${cita.notes}` : ""}
+                    </small>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Agenda más con tu bot: <code className="rounded bg-muted px-1.5 py-0.5">/cita reunión mañana 3pm</code>
+          </p>
         </div>
 
         {/* ── Tu semana: barras reales de tareas por día ── */}
@@ -311,46 +351,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
+
         <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-4 md:gap-6">
-            {/* Próximas citas — alimentadas por el bot de Telegram */}
-            <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
-              <div className="mb-1 flex items-center justify-between">
-                <h3 className="font-semibold">Próximas citas</h3>
-                <Link href={`${prefix}/calendar`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
-                  Ver agenda <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-              {proximas.length === 0 ? (
-                <p className="py-4 text-sm text-muted-foreground">
-                  Sin citas agendadas. Háblale a tu bot de Telegram:{" "}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs">/cita reunión mañana 3pm</code>
-                </p>
-              ) : (
-                proximas.map((cita) => {
-                  const f = bogota(new Date(cita.startsAt));
-                  return (
-                    <div key={cita.startsAt + cita.title} className="flex items-center gap-3 border-b py-3 last:border-0 last:pb-0">
-                      <div className="flex h-[52px] w-[48px] shrink-0 flex-col items-center justify-center rounded-2xl bg-brand-tint text-brand-text">
-                        <b className="text-[17px] leading-none">{f.dia}</b>
-                        <span className="text-[10px] font-semibold uppercase">{f.mesCorto}</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <b className="block text-sm font-semibold leading-snug line-clamp-2 md:line-clamp-none">{cita.title}</b>
-                        <small className="text-xs text-muted-foreground">
-                          {f.hora}
-                          {cita.notes ? ` · ${cita.notes}` : ""}
-                        </small>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-              <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                Agenda más con tu bot: <code className="rounded bg-muted px-1.5 py-0.5">/cita reunión mañana 3pm</code>
-              </p>
-            </div>
-
             {/* Tareas de hoy (las crea el bot de Telegram con /tarea) */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
               <h3 className="mb-1 font-semibold">Tareas de hoy</h3>
