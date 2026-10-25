@@ -13,10 +13,10 @@ type Message = {
 };
 
 const SUGGESTIONS = [
+  "Agéndame una cita con Juan mañana 3pm",
   "¿Cuántos contactos tengo?",
-  "Crea un contacto: Juan Pérez, 3001234567",
-  "¿Cómo va el pipeline?",
   "Crea una tarea: Llamar a cliente mañana",
+  "Crea un contacto: Juan Pérez, 3001234567",
 ];
 
 /** Collect CRM data from localStorage to send as context to the AI. */
@@ -50,51 +50,97 @@ function getCrmContext(): Record<string, unknown> {
   };
 }
 
-/** Execute an action returned by the AI agent */
-function executeAction(action: Record<string, unknown>): string {
+/** Convierte lo que diga el modelo ("2026-10-26T15:00:00-05:00", "2026-10-26 15:00"…) a ISO válido. */
+function aIso(v: unknown): string | null {
+  if (typeof v !== "string" || !v.trim()) return null;
+  const d = new Date(v.trim());
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Prioridad que entiende /api/tasks (el modelo puede traer "alta|media|baja"). */
+function prioridadApi(v: unknown): "high" | "medium" | "low" {
+  const s = String(v ?? "").toLowerCase();
+  if (["high", "alta", "urgente"].includes(s)) return "high";
+  if (["low", "baja"].includes(s)) return "low";
+  return "medium";
+}
+
+/** Ejecuta una acción del modelo DE VERDAD contra las APIs del CRM (BD). */
+async function executeAction(action: Record<string, unknown>): Promise<string> {
   const type = action.type as string;
 
   switch (type) {
-    case "create_contact": {
-      const contacts = loadFromStorage<Record<string, unknown>[]>("contacts", []);
-      const newContact = {
-        id: generateId(),
-        name: action.name || "",
-        phone: action.phone || "",
-        email: action.email || "",
-        company: action.company || "",
-        role: action.role || "",
-        image: "",
-        archived: false,
-        tags: Array.isArray(action.tags) ? action.tags : [],
-        createdAt: new Date().toISOString().split("T")[0],
-        customFields: [],
-        notes: [],
-        reminders: [],
-      };
-      saveToStorage("contacts", [newContact, ...contacts]);
-      window.dispatchEvent(new StorageEvent("storage", { key: "localrank_ws_" + (localStorage.getItem("localrank_active_workspace") || "default") + "_contacts" }));
-      return `✅ Contacto "${newContact.name}" creado exitosamente.`;
+    case "create_appointment": {
+      const title = String(action.title || "").trim();
+      const startsAt = aIso(action.startsAt);
+      if (!title) return "⚠️ No entendí el título de la cita — dime qué y cuándo.";
+      if (!startsAt) return "⚠️ No entendí la fecha/hora de la cita — repítela (ej: mañana 3pm).";
+      const res = await fetch("/api/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          startsAt,
+          ...(typeof action.notes === "string" && action.notes ? { notes: action.notes } : {}),
+        }),
+      }).catch(() => null);
+      if (!res?.ok) return "❌ No pude agendar la cita. Intenta de nuevo.";
+      return `✅ Cita agendada: "${title}" — ${new Date(startsAt).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}.`;
     }
 
     case "create_task": {
-      const tasks = loadFromStorage<Record<string, unknown>[]>("tasks", []);
-      const newTask = {
-        id: generateId(),
-        title: action.title || "",
-        done: false,
-        priority: action.priority || "media",
-        dueDate: action.dueDate || "",
-        assignee: action.assignee || "",
-        tags: Array.isArray(action.tags) ? action.tags : [],
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      saveToStorage("tasks", [newTask, ...tasks]);
-      // Dispatch storage event so the Tasks page re-renders if open
-      window.dispatchEvent(new StorageEvent("storage", { key: "localrank_ws_" + (localStorage.getItem("localrank_active_workspace") || "default") + "_tasks" }));
-      return `✅ Tarea "${newTask.title}" creada.`;
+      const title = String(action.title || "").trim();
+      if (!title) return "⚠️ No entendí el título de la tarea.";
+      const dueDate = aIso(action.dueDate);
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          priority: prioridadApi(action.priority),
+          ...(dueDate ? { dueDate } : {}),
+        }),
+      }).catch(() => null);
+      if (!res?.ok) return "❌ No pude crear la tarea. Intenta de nuevo.";
+      return `✅ Tarea creada: "${title}"${dueDate ? ` — vence ${new Date(dueDate).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}` : ""}.`;
     }
 
+    case "create_contact": {
+      const name = String(action.name || "").trim();
+      if (!name) return "⚠️ ¿Cómo se llama el contacto? Dime el nombre y lo creo.";
+      const res = await fetch("/api/crm/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone: typeof action.phone === "string" ? action.phone : "",
+          email: typeof action.email === "string" ? action.email : "",
+          company: typeof action.company === "string" ? action.company : "",
+          role: typeof action.role === "string" ? action.role : "",
+          tags: Array.isArray(action.tags) ? action.tags.map(String) : [],
+        }),
+      }).catch(() => null);
+      if (!res?.ok) return "❌ No pude crear el contacto. Intenta de nuevo.";
+      return `✅ Contacto "${name}" creado en tu CRM.`;
+    }
+
+    case "archive_contact": {
+      const name = String(action.name || "").trim().toLowerCase();
+      if (!name) return "⚠️ ¿A quién archivo? Dime el nombre.";
+      const list = await fetch("/api/crm/contacts").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const contacts = (Array.isArray(list?.contacts) ? list.contacts : []) as Array<{ id: string; name: string; archived?: boolean }>;
+      const hit = contacts.find((c) => !c.archived && c.name?.toLowerCase().includes(name));
+      if (!hit) return `No encontré un contacto activo llamado "${action.name}".`;
+      const res = await fetch(`/api/crm/contacts/${encodeURIComponent(hit.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: true }),
+      }).catch(() => null);
+      if (!res?.ok) return "❌ No pude archivar el contacto. Intenta de nuevo.";
+      return `✅ Contacto "${hit.name}" archivado.`;
+    }
+
+    // Notas viven en este navegador (página Notas) — igual que antes.
     case "create_note": {
       const notes = loadFromStorage<Record<string, unknown>[]>("notes", []);
       const newNote = {
@@ -109,54 +155,6 @@ function executeAction(action: Record<string, unknown>): string {
       saveToStorage("notes", [newNote, ...notes]);
       window.dispatchEvent(new StorageEvent("storage", { key: "localrank_ws_" + (localStorage.getItem("localrank_active_workspace") || "default") + "_notes" }));
       return `✅ Nota "${newNote.title}" creada.`;
-    }
-
-    case "create_lead": {
-      const leads = loadFromStorage<Record<string, unknown>[]>("pipeline_leads", []);
-      const stages = loadFromStorage<Record<string, unknown>[]>("pipeline_stages", []);
-      const stageId = (action.stageId as string) || stages[0]?.id as string || "s1";
-      const newLead = {
-        id: generateId(),
-        name: action.name || "",
-        company: action.company || "",
-        value: action.value || "$0",
-        stageId,
-      };
-      saveToStorage("pipeline_leads", [newLead, ...leads]);
-      return `✅ Lead "${newLead.name}" agregado al pipeline.`;
-    }
-
-    case "create_company": {
-      const companies = loadFromStorage<Record<string, unknown>[]>("companies", []);
-      const newCompany = {
-        id: generateId(),
-        name: action.name || "",
-        industry: action.industry || "",
-        phone: action.phone || "",
-        website: action.website || "",
-        city: action.city || "",
-        country: action.country || "",
-        employees: action.employees || "",
-        notes: [],
-        customFields: [],
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      saveToStorage("companies", [newCompany, ...companies]);
-      return `✅ Compañía "${newCompany.name}" creada.`;
-    }
-
-    case "archive_contact": {
-      const contacts = loadFromStorage<Record<string, unknown>[]>("contacts", []);
-      const name = (action.name as string || "").toLowerCase();
-      const updated = contacts.map(c =>
-        (c.name as string || "").toLowerCase().includes(name) ? { ...c, archived: true } : c
-      );
-      const found = updated.some((c, i) => c.archived !== contacts[i]?.archived);
-      if (found) {
-        saveToStorage("contacts", updated);
-        return `✅ Contacto archivado.`;
-      }
-      return `No encontré un contacto con ese nombre para archivar.`;
     }
 
     default:
@@ -306,15 +304,13 @@ export function AiAssistant() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => null);
-        reply = res.status === 503
-          ? "⚠️ El asistente IA no está configurado. Agrega GEMINI_API_KEY o OPENROUTER_API_TOKEN en las variables de entorno."
-          : err?.error?.message ?? "Hubo un error. Intenta de nuevo.";
+        reply = err?.error?.message ?? "Hubo un error. Intenta de nuevo.";
       } else {
         const data = await res.json();
         reply = data.text;
         // Execute action if the AI returned one
         if (data.action && typeof data.action === "object") {
-          actionNote = executeAction(data.action as Record<string, unknown>);
+          actionNote = await executeAction(data.action as Record<string, unknown>);
           if (actionNote) reply = `${reply}\n\n${actionNote}`;
         }
       }
