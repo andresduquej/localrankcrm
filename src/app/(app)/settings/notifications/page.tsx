@@ -187,6 +187,17 @@ function PushCard() {
   const [estado, setEstado] = useState<PushDeviceStatus | null>(null);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [env, setEnv] = useState<{ ios: boolean; instalada: boolean }>({ ios: false, instalada: false });
+
+  useEffect(() => {
+    // iOS solo permite notificaciones web DENTRO de la app instalada.
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/i.test(ua);
+    const instalada =
+      Boolean((navigator as unknown as { standalone?: boolean }).standalone) ||
+      window.matchMedia("(display-mode: standalone)").matches;
+    setEnv({ ios, instalada });
+  }, []);
 
   useEffect(() => {
     pushDeviceStatus().then(setEstado).catch(() => setEstado(null));
@@ -215,29 +226,52 @@ function PushCard() {
         la app abierta. Requiere la app instalada (Compartir → Agregar a pantalla de inicio)
         e iOS 16.4+.
       </p>
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={activar}
-          disabled={ocupado || estado?.supported === false}
-          className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {ocupado ? "Activando…" : "Activar push en este dispositivo"}
-        </button>
-        {feedback && (
-          <span className={`text-xs font-medium ${feedback.ok ? "text-green-600" : "text-amber-600"}`}>
-            {feedback.msg}
-          </span>
-        )}
-        {!feedback && estado?.subscribed && (
-          <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Este dispositivo ya recibe push
-          </span>
-        )}
-      </div>
-      {estado?.supported === false && (
+      {/* Guía según el entorno: Safari iOS NO permite notificaciones web */}
+      {env.ios && !env.instalada ? (
+        <div className="mt-4 space-y-2 rounded-xl bg-amber-50 p-3 dark:bg-amber-900/20">
+          <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+            📱 Estás en Safari: aquí el iPhone bloquea las notificaciones web.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5 text-xs text-amber-800 dark:text-amber-300">
+            <li>Toca el botón <b>Compartir</b> ⬆️ (cuadrito con flecha, abajo en Safari).</li>
+            <li>Baja y toca <b>“Agregar a pantalla de inicio”</b> → Agregar.</li>
+            <li><b>Cierra Safari</b> y abre la app desde el ícono nuevo (D azul).</li>
+            <li>Adentro: Ajustes → Notificaciones → vuelve a esta pantalla y toca Activar.</li>
+          </ol>
+          <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+            Requiere iOS 16.4 o superior. Si ya la tienes instalada, ábrela desde el ícono y regresa aquí.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            onClick={activar}
+            disabled={ocupado || estado?.supported === false}
+            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {ocupado ? "Activando…" : "Activar push en este dispositivo"}
+          </button>
+          {feedback && (
+            <span className={`text-xs font-medium ${feedback.ok ? "text-green-600" : "text-amber-600"}`}>
+              {feedback.msg}
+            </span>
+          )}
+          {!feedback && estado?.subscribed && (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Este dispositivo ya recibe push
+            </span>
+          )}
+        </div>
+      )}
+
+      {estado?.permission === "denied" && (
         <p className="mt-3 text-xs text-amber-600">
-          Este navegador no soporta push web. En iPhone: abre la app instalada (no Safari
-          normal) para activarlo.
+          El permiso está bloqueado: ve a <b>Ajustes del iPhone → DuqueLabs → Notificaciones</b> → activa “Permitir notificaciones”, y vuelve a tocar Activar.
+        </p>
+      )}
+      {estado?.supported === false && !env.ios && (
+        <p className="mt-3 text-xs text-amber-600">
+          Este navegador no soporta push web. Prueba en Chrome/Safari actualizado o en la app instalada del iPhone.
         </p>
       )}
     </div>

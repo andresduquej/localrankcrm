@@ -140,7 +140,7 @@ export default function VaultPage() {
       body: JSON.stringify(esNuevo ? payload : { ...payload, id: editando.id }),
     }).catch(() => null);
     if (res?.ok) {
-      flash(esNuevo ? "Guardado en tu bóveda ✅" : "Actualizado ✅");
+      flash(esNuevo ? "Guardado en tus recursos ✅" : "Actualizado ✅");
       setEditando(null);
       recargar();
     } else {
@@ -158,7 +158,7 @@ export default function VaultPage() {
   }
 
   async function eliminar(it: VaultItem) {
-    if (!window.confirm(`¿Eliminar «${it.title}» de la bóveda?`)) return;
+    if (!window.confirm(`¿Eliminar «${it.title}» de tus recursos?`)) return;
     const res = await fetch(`/api/vault?id=${encodeURIComponent(it.id)}`, {
       method: "DELETE",
     }).catch(() => null);
@@ -244,7 +244,7 @@ export default function VaultPage() {
       .catch(() => false);
     if (ok) {
       setVideo(null);
-      flash("Video guardado en tu bóveda con su transcripción 🎥");
+      flash("Video guardado en Recursos con su transcripción 🎥");
       recargar();
     }
   }
@@ -401,7 +401,7 @@ export default function VaultPage() {
       if (res) ok++;
     }
     setImportacion(null);
-    flash(`${ok} favorito(s) importados a la bóveda 📥`);
+    flash(`${ok} favorito(s) importados a Recursos 📥`);
     recargar();
   }
 
@@ -411,9 +411,9 @@ export default function VaultPage() {
         {/* Cabecera */}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold md:text-xl">Bóveda</h2>
+            <h2 className="text-lg font-bold md:text-xl">Recursos</h2>
             <p className="text-xs text-muted-foreground md:text-sm">
-              Tus repos, páginas y herramientas — todo en un lugar
+              Tus repos, páginas, herramientas y videos — todo en un lugar
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
@@ -729,9 +729,9 @@ export default function VaultPage() {
           <div className="py-10 text-center text-sm text-muted-foreground">Cargando…</div>
         ) : visibles.length === 0 ? (
           <div className="rounded-2xl border border-dashed p-8 text-center">
-            <p className="font-medium">Tu bóveda está vacía</p>
+            <p className="font-medium">Tus recursos están vacíos</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Guarda tu primer repo o importa tus favoritos de Chrome
+              Guarda tu primer repo, sube un video o importa tus favoritos de Chrome
             </p>
           </div>
         ) : (

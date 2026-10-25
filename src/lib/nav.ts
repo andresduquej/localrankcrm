@@ -102,7 +102,7 @@ export const NAV_CATEGORIES: NavCategory[] = [
     { href: "/team", label: "Equipo", icon: UsersRound },
     { href: "/team-chat", label: "Chat interno", icon: MessageSquare },
     { href: "/workspaces", label: "Workspace", icon: FolderOpen },
-    { href: "/vault", label: "Bóveda", icon: Database },
+    { href: "/vault", label: "Recursos", icon: Database },
   ]},
   { label: "Datos & Control", items: [
     { href: "/analytics", label: "Analytics", icon: BarChart3 },
@@ -151,7 +151,7 @@ export const PERSONAL_NAV: NavItem[] = [
   { href: "/dashboard", label: "Hoy", icon: LayoutDashboard },
   { href: "/calendar", label: "Agenda", icon: Calendar },
   { href: "/tasks", label: "Tareas", icon: CheckSquare },
-  { href: "/vault", label: "Bóveda", icon: Database },
+  { href: "/vault", label: "Recursos", icon: Database },
   { href: "/notes", label: "Bóveda de ideas", icon: StickyNote },
   { href: "/contacts", label: "Contactos", icon: Users },
 ];

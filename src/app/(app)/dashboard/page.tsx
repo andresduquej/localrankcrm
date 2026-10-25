@@ -263,7 +263,7 @@ export default function DashboardPage() {
             { href: "/calendar", n: citasHoy, label: "Citas hoy", emoji: "📅", tint: "bg-[#ff9f0a]/15 text-[16px]" },
             { href: "/contacts", n: nContactos, label: "Contactos", emoji: "👤", tint: "bg-[#5856d6]/15 text-[16px]" },
             { href: "/inbox", n: sinLeer, label: "Sin leer", emoji: "💬", tint: "bg-[#30b0c7]/15 text-[16px]" },
-            { href: "/vault", n: boveda.length, label: "Bóveda", emoji: "🗂", tint: "bg-brand-tint text-[16px]" },
+            { href: "/vault", n: boveda.length, label: "Recursos", emoji: "🗂", tint: "bg-brand-tint text-[16px]" },
           ].map((acceso) => (
             <Link
               key={acceso.href}
@@ -398,19 +398,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-4 md:gap-6">
-            {/* En tu bóveda — recursos guardados de verdad */}
+            {/* En tus recursos — recursos guardados de verdad */}
             <div className="rounded-2xl border bg-white p-4 shadow-sm md:p-5">
               <div className="mb-1 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 font-semibold">
-                  <Database className="h-4 w-4 text-brand" /> En tu bóveda
+                  <Database className="h-4 w-4 text-brand" /> En tus recursos
                 </h3>
                 <Link href={`${prefix}/vault`} className="flex items-center gap-0.5 text-xs font-semibold text-brand">
-                  Ver bóveda <ChevronRight className="h-3.5 w-3.5" />
+                  Ver recursos <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
               {boveda.length === 0 ? (
                 <p className="py-4 text-sm text-muted-foreground">
-                  Nada guardado aún — agrega repos, páginas o herramientas en la Bóveda.
+                  Nada guardado aún — agrega repos, páginas o herramientas en Recursos.
                 </p>
               ) : (
                 boveda.map((item) => {
