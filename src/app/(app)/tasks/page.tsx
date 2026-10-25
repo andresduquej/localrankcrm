@@ -66,7 +66,7 @@ export default function TasksPage() {
   const [creando, setCreando] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const [feedback, setFeedback] = useState("");
-  const recRef = useRef<{ stop: () => void } | null>(null);
+  const recRef = useRef<{ stop: () => void; abort?: () => void } | null>(null);
 
   useEffect(() => {
     cargar();
@@ -186,9 +186,16 @@ export default function TasksPage() {
     };
     rec.onend = () => setGrabando(false);
     rec.onerror = () => setGrabando(false);
+    // Mata instancias previas (el 2.º uso falla si quedan vivas)
+    try { recRef.current?.stop?.(); } catch {}
+    try { recRef.current?.abort?.(); } catch {}
     recRef.current = rec;
-    rec.start();
-    setGrabando(true);
+    try {
+      rec.start();
+      setGrabando(true);
+    } catch {
+      setGrabando(false);
+    }
   }
 
   return (

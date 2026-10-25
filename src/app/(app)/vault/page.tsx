@@ -87,7 +87,7 @@ export default function VaultPage() {
     error?: string;
   }>(null);
   const videoRef = useRef<HTMLInputElement>(null);
-  const recRef = useRef<{ stop: () => void } | null>(null);
+  const recRef = useRef<{ stop: () => void; abort?: () => void } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -310,9 +310,16 @@ export default function VaultPage() {
     };
     rec.onend = () => setGrabando(false);
     rec.onerror = () => setGrabando(false);
+    // Mata instancias previas (el 2.º uso falla si quedan vivas)
+    try { recRef.current?.stop?.(); } catch {}
+    try { recRef.current?.abort?.(); } catch {}
     recRef.current = rec;
-    rec.start();
-    setGrabando(true);
+    try {
+      rec.start();
+      setGrabando(true);
+    } catch {
+      setGrabando(false);
+    }
   }
 
   /** La IA entiende el texto libre y guarda el recurso. */

@@ -184,15 +184,28 @@ export function AiAssistant() {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  /** Mata la instancia de reconocimiento: sin esto, el segundo uso falla
+   *  en silencio (InvalidStateError) — iOS/iPhone especialmente. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matarReconocimiento = (rec: any) => {
+    if (!rec) return;
+    try { rec.onstart = null; rec.onresult = null; rec.onend = null; rec.onerror = null; } catch {}
+    try { rec.stop(); } catch {}
+    try { rec.abort(); } catch {}
+  };
+
   const toggleVoice = useCallback(() => {
     if (listening) {
       // Corte manual: el texto transcrito YA quedó en el input; el usuario
       // lo edita o envía con el botón. El estado se libera siempre.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (recognitionRef.current as any)?.stop?.();
+      matarReconocimiento(recognitionRef.current);
+      recognitionRef.current = null;
       setListening(false);
       return;
     }
+    // Limpia restos de una sesión previa antes de empezar (uso #2, #3…)
+    matarReconocimiento(recognitionRef.current);
+    recognitionRef.current = null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -211,7 +224,11 @@ export function AiAssistant() {
     let confirmado = "";
 
     recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      // Fin natural del audio: el estado se libera (la instancia se
+      // recrea en el próximo uso — reutilizarla es lo que se pega).
+      setListening(false);
+    };
     recognition.onerror = (e: unknown) => {
       setListening(false);
       const err = e as Record<string, unknown>;
@@ -236,8 +253,16 @@ export function AiAssistant() {
     try {
       recognition.start();
     } catch {
-      alert("No pude iniciar el micrófono — cierra y vuelve a abrir la app e intenta de nuevo.");
-      setListening(false);
+      // "already started": aborta la zombie y reintenta una vez, fresca
+      matarReconocimiento(recognition);
+      const reintento = recognition;
+      setTimeout(() => {
+        try {
+          reintento.start();
+        } catch {
+          setListening(false);
+        }
+      }, 350);
     }
   }, [listening]);
 
@@ -245,8 +270,8 @@ export function AiAssistant() {
     // Escuchando → cortar el micrófono: lo transcrito queda en el input
     // y este envío ya lo manda (como pediste el botón nunca queda pegado).
     if (listening) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (recognitionRef.current as any)?.stop?.();
+      matarReconocimiento(recognitionRef.current);
+      recognitionRef.current = null;
       setListening(false);
     }
     const text = input.trim();
