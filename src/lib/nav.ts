@@ -156,8 +156,6 @@ export const PERSONAL_NAV: NavItem[] = [
   { href: "/contacts", label: "Contactos", icon: Users },
 ];
 
-const PERSONAL_HREFS = PERSONAL_NAV.map((i) => i.href);
-
 /** Tab bar en modo personal: 4 tuyos + "Más". */
 export const PERSONAL_MOBILE_TABS: NavItem[] = [
   { href: "/dashboard", label: "Hoy", icon: LayoutDashboard },
@@ -167,12 +165,8 @@ export const PERSONAL_MOBILE_TABS: NavItem[] = [
 ];
 
 /** Hoja "Más" en modo personal: "Lo tuyo" arriba + el resto agrupado. */
+/** Hoja "Más" en modo personal: SOLO lo tuyo — los módulos enterprise
+ *  quedan escondidos tras el botón "Ver todos los módulos". */
 export function personalSheetCategories(): NavCategory[] {
-  return [
-    { label: "Lo tuyo", items: PERSONAL_NAV },
-    ...NAV_CATEGORIES.map((c) => ({
-      label: c.label,
-      items: c.items.filter((i) => !PERSONAL_HREFS.includes(i.href)),
-    })).filter((c) => c.items.length > 0),
-  ];
+  return [{ label: "Lo tuyo", items: PERSONAL_NAV }];
 }

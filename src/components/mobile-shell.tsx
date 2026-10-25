@@ -50,6 +50,14 @@ export function MobileShell({ userName, role }: { userName: string; role: string
     return () => window.removeEventListener(PERSONAL_MODE_EVENT, onMode);
   }, []);
 
+  /** Cambia entre modo personal (lo tuyo) y completo (todos los módulos). */
+  function setModePersonal(v: boolean) {
+    try {
+      localStorage.setItem("duquelabs_personal_mode", String(v));
+    } catch {}
+    window.dispatchEvent(new Event("duquelabs-mode"));
+  }
+
   const tabs = personal ? PERSONAL_MOBILE_TABS : MOBILE_TABS;
 
   // Título de la sección actual para la cabecera (large title compacto)
@@ -234,6 +242,11 @@ export function MobileShell({ userName, role }: { userName: string; role: string
               {categories.length === 0 && (
                 <p className="py-10 text-center text-[15px] text-foreground/50">
                   No hay secciones que coincidan con «{query}».
+                  {personal && (
+                    <span className="mt-2 block text-xs">
+                      Los demás módulos están escondidos — toca «Ver todos los módulos» para buscarlos.
+                    </span>
+                  )}
                 </p>
               )}
               {categories.map((cat, catIdx) => (
@@ -270,6 +283,15 @@ export function MobileShell({ userName, role }: { userName: string; role: string
                   </div>
                 </section>
               ))}
+
+              {/* Cambio de modo: personal ↔ completo */}
+              <button
+                onClick={() => setModePersonal(!personal)}
+                className="ios-press-sm mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] bg-foreground/[0.035] px-4 py-3 text-[14px] font-semibold text-foreground/80 hairline-t active:bg-foreground/5"
+              >
+                <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
+                {personal ? "Ver todos los módulos" : "Volver al modo personal (solo lo tuyo)"}
+              </button>
 
               {/* Sistema: docs, sugerencias, papelera, ajustes y cuenta */}
               <section className="mt-5">
