@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Bell, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, DollarSign, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, DollarSign, Plus, Trash2, X } from "lucide-react";
 import { loadFromStorage, saveToStorage, generateId } from "@/lib/local-storage";
 
 type CalendarGroup = { id: string; name: string; color: string };
@@ -132,11 +132,19 @@ export default function CalendarPage() {
         }
       }
       if (Array.isArray(ext?.sources)) setFuentes(ext.sources);
-      if (eventos.length > 0) {
-        setCalendars([...grupos, ...cals]);
-        setVisibleCalendars(new Set([...grupos.map((g) => g.id), ...cals.map((c) => c.id)]));
-        setAppointments(eventos);
-      }
+      // Registra los grupos de lo que venga de la BD (siempre, no solo si
+      // hay eventos) para que el filtro de visibilidad no los esconda.
+      const gruposFinales = [...grupos, ...cals];
+      setCalendars(gruposFinales);
+      setVisibleCalendars(new Set([...grupos.map((g) => g.id), ...cals.map((c) => c.id)]));
+      // FUSIONA en vez de reemplazar: las citas de BD/externas primero y
+      // debajo las locales (menos las semillas de la demo). Antes, con una
+      // sola cita real, TODO lo creado en la Agenda desaparecía de la vista.
+      const semillas = new Set(["a1", "a2", "a3", "a4", "a5", "a6"]);
+      const locales = (loadFromStorage<Appointment[]>("calendar_appointments", []) as Appointment[]).filter(
+        (a) => !semillas.has(a.id)
+      );
+      setAppointments([...eventos, ...locales]);
     });
   }, []);
 
@@ -179,7 +187,15 @@ export default function CalendarPage() {
   }
 
   function saveCals(u: CalendarGroup[]) { setCalendars(u); saveToStorage("calendars", u); }
-  function saveAppts(u: Appointment[]) { setAppointments(u); saveToStorage("calendar_appointments", u); }
+  /** Al localStorage solo van las citas de la demo: las "real-" viven en la
+   *  BD y las recarga el fetch (si se copiaran, se duplicarían). */
+  function saveAppts(u: Appointment[]) {
+    setAppointments(u);
+    saveToStorage(
+      "calendar_appointments",
+      u.filter((a) => !a.id.startsWith("real-"))
+    );
+  }
 
   function addCalendar() {
     if (!calForm.name.trim()) return;
@@ -200,30 +216,72 @@ export default function CalendarPage() {
     setVisibleCalendars((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
-  function addAppointment() {
+  /** Guarda la cita DE VERDAD en la BD (/api/appointments): así la ven el
+   *  agente, el Hoy, los recordatorios de Telegram y el push. En preview
+   *  (sin sesión, la API falla) cae al localStorage de la demo. */
+  async function addAppointment() {
     if (!apptForm.title.trim() || !apptForm.date) return;
-    const a: Appointment = { id: generateId(), ...apptForm, done: false };
+    const time = apptForm.time || "09:00";
+    const res = await fetch("/api/appointments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: apptForm.title,
+        startsAt: new Date(`${apptForm.date}T${time}:00-05:00`).toISOString(),
+        notes: [apptForm.contact, apptForm.amount ? `Cobro: ${apptForm.amount}` : "", apptForm.notes]
+          .filter(Boolean)
+          .join(" · "),
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    const creado = res?.appointment as { id: string } | undefined;
+    const a: Appointment = creado
+      ? { id: `real-${creado.id}`, ...apptForm, time, done: false }
+      : { id: generateId(), ...apptForm, time, done: false };
     saveAppts([...appointments, a]);
     setApptForm({ title: "", date: "", time: "", duration: "", calendarId: calendars[0]?.id || "", contact: "", type: "appointment", amount: "", notes: "" });
     setShowNewAppt(false);
   }
 
-  function toggleDone(id: string) { saveAppts(appointments.map((a) => a.id === id ? { ...a, done: !a.done } : a)); }
-  function deleteAppt(id: string) { saveAppts(appointments.filter((a) => a.id !== id)); }
+  /** Los "real-" viven en la BD: completar/borrar van a la API; el resto, al
+   *  localStorage de la demo como siempre. */
+  async function toggleDone(id: string) {
+    if (id.startsWith("real-")) {
+      const nuevo = !appointments.find((a) => a.id === id)?.done;
+      setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, done: nuevo } : a)));
+      await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id.slice(5), done: nuevo }),
+      }).catch(() => {});
+      return;
+    }
+    saveAppts(appointments.map((a) => (a.id === id ? { ...a, done: !a.done } : a)));
+  }
+  async function deleteAppt(id: string) {
+    if (id.startsWith("real-")) {
+      setAppointments((prev) => prev.filter((a) => a.id !== id));
+      await fetch(`/api/appointments?id=${encodeURIComponent(id.slice(5))}`, { method: "DELETE" }).catch(() => {});
+      return;
+    }
+    saveAppts(appointments.filter((a) => a.id !== id));
+  }
 
   function prevMonth() { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); } else setCurrentMonth(currentMonth - 1); }
   function nextMonth() { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); } else setCurrentMonth(currentMonth + 1); }
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
-  const today = new Date().toISOString().split("T")[0];
+  // "Hoy" en hora de Colombia: con el UTC directo, después de las 7pm el
+  // día de hoy era MAÑANA y las citas se creaban/listaban un día corrido.
+  const today = hoyWall.toISOString().slice(0, 10);
 
   const visibleAppts = appointments.filter((a) => visibleCalendars.has(a.calendarId));
   const selectedAppts = selectedDate ? visibleAppts.filter((a) => a.date === selectedDate) : [];
 
   // Upcoming (next 7 days)
-  const nowDate = new Date();
-  const in7Days = new Date(nowDate.getTime() + 7 * 86400000).toISOString().split("T")[0]!;
+  const in7Days = new Date(hoyWall.getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
   const upcoming = visibleAppts.filter((a) => !a.done && a.date >= today! && a.date <= in7Days).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
   function getCalColor(calId: string) { return calendars.find((c) => c.id === calId)?.color || "#999"; }

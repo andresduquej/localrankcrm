@@ -40,9 +40,10 @@ const patchSchema = z.object({
   title: z.string().trim().min(1).max(300).optional(),
   startsAt: z.string().datetime().optional(),
   notes: z.string().max(2000).optional(),
+  done: z.boolean().optional(),
 });
 
-/** PATCH — reprograma/edita una cita (el asistente: "pásala al martes 4pm"). */
+/** PATCH — reprograma/edita/marca-hecha una cita (asistente y Agenda). */
 export const PATCH = withAuth(async (session, req: Request) => {
   const body = await parseBody(req, patchSchema);
   if (!body.ok) return body.response;
@@ -51,6 +52,7 @@ export const PATCH = withAuth(async (session, req: Request) => {
   if (campos.title !== undefined) cambios.title = campos.title;
   if (campos.notes !== undefined) cambios.notes = campos.notes;
   if (campos.startsAt !== undefined) cambios.startsAt = new Date(campos.startsAt);
+  if (campos.done !== undefined) cambios.completedAt = campos.done ? new Date() : null;
   if (Object.keys(cambios).length === 0) {
     return apiError(422, "nothing_to_update", "No llegó nada que cambiar (title/startsAt/notes)");
   }
