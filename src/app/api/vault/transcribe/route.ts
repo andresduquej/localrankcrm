@@ -20,7 +20,7 @@ export const POST = withAuth(async (session, req: Request) => {
     return apiError(
       503,
       "whisper_not_configured",
-      "La transcripción usa Whisper vía GROQ: activa GROQ en Ajustes → IA / APIs."
+      "Para transcribir necesitas una llave de GROQ (gratis): 1) entra a groq.com/console/keys y crea una API key, 2) en la app ve a Ajustes → IA / APIs, elige el proveedor GROQ y pégala ahí."
     );
   }
 

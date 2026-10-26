@@ -253,13 +253,13 @@ function buildDataSummary(ctx: Record<string, unknown>): string {
   // Calendar
   const appointments = Array.isArray(ctx.calendarAppointments) ? ctx.calendarAppointments : [];
   if (appointments.length > 0) {
-    sections.push(`\nCITAS/CALENDARIO (${appointments.length}):`);
+    sections.push(`\nCITAS/CALENDARIO (${appointments.length}) — fechas y horas en hora de Colombia (UTC-5):`);
     for (const a of appointments.slice(0, 15)) {
       const apt = a as Record<string, unknown>;
       let line = `• ${apt.title || "Cita"}`;
       if (apt.date) line += ` | Fecha: ${apt.date}`;
       if (apt.time) line += ` ${apt.time}`;
-      if (apt.client || apt.contact) line += ` | Cliente: ${apt.client || apt.contact}`;
+      if (apt.completed) line += " (✓ ya hecha)";
       sections.push(line);
     }
   }

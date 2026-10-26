@@ -40,19 +40,28 @@ async function getCrmContext(): Promise<Record<string, unknown>> {
     getJson("/api/suppliers"),
   ]);
 
-  // Agenda real: {id, title, startsAt ISO} → el resumen del servidor muestra
-  // fecha/hora legible y el modelo cita el título exacto al reprogramar.
+  // Agenda real: {id, title, startsAt ISO} → fecha/hora en hora de COLOMBIA
+  // (UTC-5 fijo, igual que el resto de la app). Cortar el ISO directo daba
+  // la hora UTC (+5 h) y las citas de la tarde-noche con fecha del día
+  // siguiente: por eso el modelo "no veía" las reuniones de mañana.
+  const DIAS_CORTOS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
   const citas = (Array.isArray((agenda as { appointments?: unknown[] })?.appointments)
     ? (agenda as { appointments: Record<string, unknown>[] }).appointments
     : []
-  ).map((a) => ({
-    id: a.id,
-    title: a.title,
-    startsAt: a.startsAt,
-    date: typeof a.startsAt === "string" ? a.startsAt.slice(0, 10) : "",
-    time: typeof a.startsAt === "string" ? a.startsAt.slice(11, 16) : "",
-    completed: Boolean(a.completedAt),
-  }));
+  ).map((a) => {
+    const d = typeof a.startsAt === "string" ? new Date(a.startsAt) : null;
+    const wall = d && !Number.isNaN(d.getTime()) ? new Date(d.getTime() - 5 * 3600_000) : null;
+    return {
+      id: a.id,
+      title: a.title,
+      startsAt: a.startsAt,
+      date: wall
+        ? `${wall.toISOString().slice(0, 10)} ${DIAS_CORTOS[wall.getUTCDay()]}`
+        : "",
+      time: wall ? wall.toISOString().slice(11, 16) : "",
+      completed: Boolean(a.completedAt),
+    };
+  });
 
   const tareasBd = (Array.isArray((tareas as { tasks?: unknown[] })?.tasks)
     ? (tareas as { tasks: Record<string, unknown>[] }).tasks
