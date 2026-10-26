@@ -1,10 +1,12 @@
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { parseBody, withAuth } from "@/lib/api";
+import { apiError, parseBody, withAuth } from "@/lib/api";
+import { getDb, schema } from "@/lib/db";
 import { createAppointment, listAppointments } from "@/server/telegram/notify";
 
 export const dynamic = "force-dynamic";
 
-/** Agenda del CRM (la alimenta el bot de Telegram y la UI). */
+/** Agenda del CRM (la alimenta el bot de Telegram, la UI y el asistente). */
 
 export const GET = withAuth(async (session) => {
   const rows = await listAppointments(session.organizationId, {
@@ -31,4 +33,41 @@ export const POST = withAuth(async (session, req: Request) => {
     source: "api",
   });
   return Response.json({ ok: true, appointment: created }, { status: 201 });
+});
+
+const patchSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().trim().min(1).max(300).optional(),
+  startsAt: z.string().datetime().optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+/** PATCH — reprograma/edita una cita (el asistente: "pásala al martes 4pm"). */
+export const PATCH = withAuth(async (session, req: Request) => {
+  const body = await parseBody(req, patchSchema);
+  if (!body.ok) return body.response;
+  const { id, ...campos } = body.data;
+  const cambios: Record<string, unknown> = {};
+  if (campos.title !== undefined) cambios.title = campos.title;
+  if (campos.notes !== undefined) cambios.notes = campos.notes;
+  if (campos.startsAt !== undefined) cambios.startsAt = new Date(campos.startsAt);
+  if (Object.keys(cambios).length === 0) {
+    return apiError(422, "nothing_to_update", "No llegó nada que cambiar (title/startsAt/notes)");
+  }
+
+  const db = getDb();
+  const actualizadas = await db
+    .update(schema.appointment)
+    .set(cambios)
+    .where(
+      and(
+        eq(schema.appointment.id, id),
+        eq(schema.appointment.organizationId, session.organizationId)
+      )
+    )
+    .returning();
+  if (!actualizadas[0]) {
+    return apiError(404, "not_found", "No encontré esa cita");
+  }
+  return Response.json({ ok: true, appointment: actualizadas[0] });
 });

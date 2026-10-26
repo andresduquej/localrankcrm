@@ -19,14 +19,83 @@ const SUGGESTIONS = [
   "Crea un contacto: Juan Pérez, 3001234567",
 ];
 
-/** Collect CRM data from localStorage to send as context to the AI. */
-function getCrmContext(): Record<string, unknown> {
+/** fetch con tope de 8 s: un endpoint lento no debe colgar el envío. */
+function getJson(url: string): Promise<unknown> {
+  return fetch(url, { signal: AbortSignal.timeout(8_000) })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+}
+
+/**
+ * Contexto del CRM para el agente. Lo que vive en la BASE DE DATOS (citas,
+ * tareas, contactos, proveedores) se trae de sus APIs — localStorage queda
+ * vacío para esos módulos y el agente "no encontraba" nada. El resto de
+ * módulos (pipeline, checklists, notas…) siguen leyendo su localStorage.
+ */
+async function getCrmContext(): Promise<Record<string, unknown>> {
+  const [agenda, tareas, contactos, proveedores] = await Promise.all([
+    getJson("/api/appointments"),
+    getJson("/api/tasks"),
+    getJson("/api/crm/contacts"),
+    getJson("/api/suppliers"),
+  ]);
+
+  // Agenda real: {id, title, startsAt ISO} → el resumen del servidor muestra
+  // fecha/hora legible y el modelo cita el título exacto al reprogramar.
+  const citas = (Array.isArray((agenda as { appointments?: unknown[] })?.appointments)
+    ? (agenda as { appointments: Record<string, unknown>[] }).appointments
+    : []
+  ).map((a) => ({
+    id: a.id,
+    title: a.title,
+    startsAt: a.startsAt,
+    date: typeof a.startsAt === "string" ? a.startsAt.slice(0, 10) : "",
+    time: typeof a.startsAt === "string" ? a.startsAt.slice(11, 16) : "",
+    completed: Boolean(a.completedAt),
+  }));
+
+  const tareasBd = (Array.isArray((tareas as { tasks?: unknown[] })?.tasks)
+    ? (tareas as { tasks: Record<string, unknown>[] }).tasks
+    : []
+  ).map((t) => ({
+    title: t.title,
+    priority: t.priority,
+    dueDate: t.dueDate,
+    done: t.done,
+  }));
+
+  const contactosBd = (Array.isArray((contactos as { contacts?: unknown[] })?.contacts)
+    ? (contactos as { contacts: Record<string, unknown>[] }).contacts
+    : []
+  ).map((c) => ({
+    name: c.name,
+    phone: c.phone,
+    email: c.email,
+    company: c.company,
+    role: c.role,
+    archived: c.archived ?? c.archivedAt != null,
+  }));
+
+  const proveedoresBd = (Array.isArray((proveedores as { items?: unknown[] })?.items)
+    ? (proveedores as { items: Record<string, unknown>[] }).items
+    : []
+  ).map((s) => ({
+    name: s.title,
+    url: s.url,
+    rating: s.rating,
+    tags: s.tags,
+  }));
+
   return {
-    contacts: loadFromStorage("contacts", []),
+    // BD real:
+    calendarAppointments: citas,
+    tasks: tareasBd,
+    contacts: contactosBd,
+    suppliers: proveedoresBd,
+    // Módulos que aún viven en este navegador:
     pipelineStages: loadFromStorage("pipeline_stages", []),
     pipelineLeads: loadFromStorage("pipeline_leads", []),
     inboxConversations: loadFromStorage("inbox_conversations", []),
-    calendarAppointments: loadFromStorage("calendar_appointments", []),
     focusTasks: loadFromStorage("focus_tasks", []),
     checklists: loadFromStorage("checklists_v2", []),
     meetingReminders: loadFromStorage("meeting_reminders", []),
@@ -44,8 +113,6 @@ function getCrmContext(): Record<string, unknown> {
     notes: loadFromStorage("notes", []),
     todos: loadFromStorage("todos", {}),
     companies: loadFromStorage("companies", []),
-    tasks: loadFromStorage("tasks", []),
-    suppliers: loadFromStorage("suppliers", []),
     reminders: loadFromStorage("reminders_v2", []),
   };
 }
@@ -86,6 +153,32 @@ async function executeAction(action: Record<string, unknown>): Promise<string> {
       }).catch(() => null);
       if (!res?.ok) return "❌ No pude agendar la cita. Intenta de nuevo.";
       return `✅ Cita agendada: "${title}" — ${new Date(startsAt).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}.`;
+    }
+
+    case "reschedule_appointment": {
+      const needle = String(action.title || "").trim().toLowerCase();
+      const startsAt = aIso(action.startsAt);
+      if (!needle) return "⚠️ ¿Qué cita reprogramo? Dímelo como aparece en tu agenda.";
+      if (!startsAt) return "⚠️ No entendí la nueva fecha/hora — repítela (ej: el martes 4pm).";
+      const list = await getJson("/api/appointments");
+      const citas = (Array.isArray((list as { appointments?: unknown[] })?.appointments)
+        ? (list as { appointments: Record<string, unknown>[] }).appointments
+        : []);
+      const hit = citas.find(
+        (a) =>
+          !a.completedAt &&
+          String(a.title ?? "").toLowerCase().includes(needle)
+      );
+      if (!hit) {
+        return `No encontré una cita pendiente que coincida con "${action.title}". Mira los títulos exactos en tu agenda e inténtalo de nuevo.`;
+      }
+      const res = await fetch("/api/appointments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: hit.id, startsAt }),
+      }).catch(() => null);
+      if (!res?.ok) return "❌ No pude reprogramar la cita. Intenta de nuevo.";
+      return `✅ Cita "${hit.title}" reprogramada para ${new Date(startsAt).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}.`;
     }
 
     case "create_task": {
@@ -212,56 +305,63 @@ export function AiAssistant() {
       return;
     }
 
-    const recognition = new SR();
-    recognition.lang = "es-CO";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.maxAlternatives = 1;
+    // Crea una instancia FRESCA con todos sus listeners. El reintento ante
+    // "already started" NUNCA reutiliza la instancia: matarla y arrancarla
+    // de nuevo la deja sin oídos (no transcribe) y el dictado se moría.
+    const crearYArrancar = () => {
+      const recognition = new SR();
+      recognition.lang = "es-CO";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.maxAlternatives = 1;
 
-    // Base confirmada + interino: evita duplicar texto al reenviar resultados
-    let confirmado = "";
+      // Base confirmada + interino: evita duplicar texto al reenviar resultados
+      let confirmado = "";
 
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => {
-      // Fin natural del audio: el estado se libera (la instancia se
-      // recrea en el próximo uso — reutilizarla es lo que se pega).
-      setListening(false);
-    };
-    recognition.onerror = (e: unknown) => {
-      setListening(false);
-      const err = e as Record<string, unknown>;
-      if (err.error === "not-allowed") {
-        alert("Permiso de micrófono denegado. En Ajustes del iPhone → DuqueLabs (o Safari) → permite el micrófono.");
-      }
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    recognition.onresult = (event: any) => {
-      let interino = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i];
-        if (r.isFinal) confirmado += r[0].transcript + " ";
-        else interino += r[0].transcript;
-      }
-      setInput((confirmado + interino).trim());
-      // El envío lo decide el usuario: nada de clics automáticos.
-    };
-
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-    } catch {
-      // "already started": aborta la zombie y reintenta una vez, fresca
-      matarReconocimiento(recognition);
-      const reintento = recognition;
-      setTimeout(() => {
-        try {
-          reintento.start();
-        } catch {
-          setListening(false);
+      recognition.onstart = () => setListening(true);
+      recognition.onend = () => {
+        // Fin natural del audio: el estado se libera (la instancia se
+        // recrea en el próximo uso — reutilizarla es lo que se pega).
+        setListening(false);
+      };
+      recognition.onerror = (e: unknown) => {
+        setListening(false);
+        const err = e as Record<string, unknown>;
+        if (err.error === "not-allowed") {
+          alert("Permiso de micrófono denegado. En Ajustes del iPhone → DuqueLabs (o Safari) → permite el micrófono.");
         }
-      }, 350);
-    }
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
+        let interino = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i];
+          if (r.isFinal) confirmado += r[0].transcript + " ";
+          else interino += r[0].transcript;
+        }
+        setInput((confirmado + interino).trim());
+        // El envío lo decide el usuario: nada de clics automáticos.
+      };
+
+      recognitionRef.current = recognition;
+      try {
+        recognition.start();
+      } catch {
+        // "already started" (iOS sobre todo): mata la zombie y reintenta UNA
+        // vez con instancia nueva y listeners intactos.
+        matarReconocimiento(recognition);
+        recognitionRef.current = null;
+        setTimeout(() => {
+          try {
+            crearYArrancar();
+          } catch {
+            setListening(false);
+          }
+        }, 350);
+      }
+    };
+
+    crearYArrancar();
   }, [listening]);
 
   async function send() {
@@ -291,7 +391,7 @@ export function AiAssistant() {
         .slice(-10)
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const crmContext = getCrmContext();
+      const crmContext = await getCrmContext();
 
       const res = await fetch("/api/agent/chat", {
         method: "POST",

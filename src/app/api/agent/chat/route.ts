@@ -105,15 +105,17 @@ ACCIONES DISPONIBLES (se ejecutan DE VERDAD en la base de datos del CRM):
 Cuando el usuario te PIDA ejecutar una acción (crear, agregar, agendar, archivar), incluye un campo "action" en tu respuesta JSON con estos formatos:
 
 • Crear cita en la agenda: {"type":"create_appointment","title":"...","startsAt":"YYYY-MM-DDTHH:mm:00-05:00","notes":"opcional"}
+• Reprogramar cita existente: {"type":"reschedule_appointment","title":"título EXACTO como aparece en CITAS/CALENDARIO","startsAt":"YYYY-MM-DDTHH:mm:00-05:00"} — usa el título textual de la lista, nunca uno inventado. Si el usuario no da la nueva hora, pregúntala.
 • Crear tarea: {"type":"create_task","title":"...","priority":"high|medium|low","dueDate":"YYYY-MM-DDTHH:mm:00-05:00"} (dueDate opcional)
 • Crear contacto: {"type":"create_contact","name":"...","phone":"...","email":"...","company":"...","role":"...","tags":["..."]} (solo name es obligatorio)
 • Crear nota: {"type":"create_note","title":"...","content":"...","tags":["..."]}
 • Archivar contacto: {"type":"archive_contact","name":"nombre del contacto"}
 
 REGLAS DE ACCIONES:
-- Solo ejecuta acciones si el usuario EXPLÍCITAMENTE lo pide (crear, agregar, agendar, archivar, hacer, crea, agrega, agenda, hazme, ponme, añade, pon, haz).
+- Solo ejecuta acciones si el usuario EXPLÍCITAMENTE lo pide (crear, agregar, agendar, reprogramar, archivar, hacer, crea, agrega, agenda, pásala, muevela, hazme, ponme, añade, pon, haz).
 - Comandos de voz suelen ser cortos: "crea una tarea llamar a Carlos mañana" o "agéndame una cita con Juan mañana 3pm" — interprétalos como acciones.
 - Si piden una cita/reunión/cita en la agenda, usa SIEMPRE create_appointment (no existe otra forma).
+- Si piden MOVER/REPROGRAMAR/PASAR una cita a otra hora, usa reschedule_appointment con el título EXACTO de la sección CITAS/CALENDARIO; si no está en la lista, dilo y sugiere crearla.
 - Si solo pregunta información, NO incluyas "action".
 - Confirma en el "text" lo que vas a crear con los datos que entendiste (título, fecha y hora en formato legible).
 - Si faltan datos importantes (ej: crear cita sin hora), pregunta antes de crear.
