@@ -70,6 +70,11 @@ export default function TasksPage() {
 
   useEffect(() => {
     cargar();
+    // Apaga el micrófono si el usuario sale de la pantalla dictando.
+    return () => {
+      try { recRef.current?.stop?.(); } catch {}
+      try { recRef.current?.abort?.(); } catch {}
+    };
   }, []);
 
   function cargar() {
@@ -131,17 +136,18 @@ export default function TasksPage() {
   }
 
   async function marcarHecha(id: string) {
+    // Optimista: si el servidor falla, la tarea vuelve a la lista.
+    const copia = tareas.find((t) => t.id === id);
     setTareas((prev) => prev.filter((t) => t.id !== id));
-    await fetch("/api/tasks", {
+    const res = await fetch("/api/tasks", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, done: true }),
-    }).catch(() => {});
+    }).catch(() => null);
+    if (!res?.ok && copia) {
+      setTareas((prev) => [...prev, copia]);
+    }
   }
-    fetch("/api/tasks/stats")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setStats(d ?? null))
-      .catch(() => {});
 
   async function eliminar(id: string) {
     setTareas((prev) => prev.filter((t) => t.id !== id));
