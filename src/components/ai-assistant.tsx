@@ -261,116 +261,116 @@ export function AiAssistant() {
     {
       id: "welcome",
       role: "assistant",
-      content: "¡Hola, mi rey! 👋 Soy tu asistente. Pregúntame lo que quieras de tu CRM o díctame órdenes: crear tareas, contactos, notas…",
+      content: "¡Hola, mi rey! 👋 Soy tu asistente. Pregúntame por tus citas, tareas y contactos, dame órdenes (agendar, reprogramar, crear) o mándame una nota de voz 🎙️ con lo que quieras guardar.",
       timestamp: new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<unknown>(null);
+  const [grabando, setGrabando] = useState(false); // nota de voz en curso
+  const [transcribiendo, setTranscribiendo] = useState(false); // Whisper trabajando
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /** Mata la instancia de reconocimiento: sin esto, el segundo uso falla
-   *  en silencio (InvalidStateError) — iOS/iPhone especialmente. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const matarReconocimiento = (rec: any) => {
-    if (!rec) return;
-    try { rec.onstart = null; rec.onresult = null; rec.onend = null; rec.onerror = null; } catch {}
-    try { rec.stop(); } catch {}
-    try { rec.abort(); } catch {}
-  };
+  // Al cerrar/desmontar con una grabación abierta: suelta el micrófono.
+  useEffect(() => {
+    return () => {
+      if (autoStopRef.current) clearTimeout(autoStopRef.current);
+      try { if (recorderRef.current?.state === "recording") recorderRef.current.stop(); } catch {}
+    };
+  }, []);
 
-  const toggleVoice = useCallback(() => {
-    if (listening) {
-      // Corte manual: el texto transcrito YA quedó en el input; el usuario
-      // lo edita o envía con el botón. El estado se libera siempre.
-      matarReconocimiento(recognitionRef.current);
-      recognitionRef.current = null;
-      setListening(false);
+  /**
+   * Nota de voz REAL: MediaRecorder → Whisper (/api/vault/transcribe).
+   * Se dejó de usar Web Speech (webkitSpeechRecognition): en iPhone la 2.ª
+   * sesión "escuchaba" pero no transcribía nada — audio session trabada.
+   * Con Whisper la transcripción llega del servidor: funciona igual en
+   * Safari, PWA instalada y desktop. Límite del server: 4.5 MB (~4 min).
+   */
+  const toggleNotaVoz = useCallback(async () => {
+    if (transcribiendo) return;
+    const rec = recorderRef.current;
+    if (grabando && rec && rec.state === "recording") {
+      // Corte manual: para, sube el audio y el texto cae en el input.
+      rec.stop();
       return;
     }
-    // Limpia restos de una sesión previa antes de empezar (uso #2, #3…)
-    matarReconocimiento(recognitionRef.current);
-    recognitionRef.current = null;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      alert("Tu navegador no soporta reconocimiento de voz. Prueba en Safari/Chrome actualizado.");
+    if (!window.MediaRecorder || !navigator.mediaDevices?.getUserMedia) {
+      alert("Tu navegador no soporta notas de voz. Escríbeme o actualiza Safari/Chrome.");
       return;
     }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      alert("No pude usar el micrófono. En Ajustes del iPhone → DuqueLabs → permite el micrófono.");
+      return;
+    }
+    const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find((t) =>
+      MediaRecorder.isTypeSupported(t)
+    );
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    chunksRef.current = [];
 
-    // Crea una instancia FRESCA con todos sus listeners. El reintento ante
-    // "already started" NUNCA reutiliza la instancia: matarla y arrancarla
-    // de nuevo la deja sin oídos (no transcribe) y el dictado se moría.
-    const crearYArrancar = () => {
-      const recognition = new SR();
-      recognition.lang = "es-CO";
-      recognition.interimResults = true;
-      recognition.continuous = true;
-      recognition.maxAlternatives = 1;
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      if (autoStopRef.current) clearTimeout(autoStopRef.current);
+      recorderRef.current = null;
+      setGrabando(false);
 
-      // Base confirmada + interino: evita duplicar texto al reenviar resultados
-      let confirmado = "";
-
-      recognition.onstart = () => setListening(true);
-      recognition.onend = () => {
-        // Fin natural del audio: el estado se libera (la instancia se
-        // recrea en el próximo uso — reutilizarla es lo que se pega).
-        setListening(false);
-      };
-      recognition.onerror = (e: unknown) => {
-        setListening(false);
-        const err = e as Record<string, unknown>;
-        if (err.error === "not-allowed") {
-          alert("Permiso de micrófono denegado. En Ajustes del iPhone → DuqueLabs (o Safari) → permite el micrófono.");
-        }
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onresult = (event: any) => {
-        let interino = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const r = event.results[i];
-          if (r.isFinal) confirmado += r[0].transcript + " ";
-          else interino += r[0].transcript;
-        }
-        setInput((confirmado + interino).trim());
-        // El envío lo decide el usuario: nada de clics automáticos.
-      };
-
-      recognitionRef.current = recognition;
-      try {
-        recognition.start();
-      } catch {
-        // "already started" (iOS sobre todo): mata la zombie y reintenta UNA
-        // vez con instancia nueva y listeners intactos.
-        matarReconocimiento(recognition);
-        recognitionRef.current = null;
-        setTimeout(() => {
-          try {
-            crearYArrancar();
-          } catch {
-            setListening(false);
-          }
-        }, 350);
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/mp4" });
+      if (blob.size < 500) {
+        setInput((prev) => prev); // tapada al instante: casi seguro no habló
+        return;
+      }
+      if (blob.size > 4_400_000) {
+        alert("La nota salió muy larga (máx ~4 min). Grábala en dos partes.");
+        return;
+      }
+      setTranscribiendo(true);
+      const fd = new FormData();
+      const ext = (recorder.mimeType || "audio/mp4").includes("mp4") ? "m4a" : "webm";
+      fd.append("file", blob, `nota.${ext}`);
+      const res = await fetch("/api/vault/transcribe", { method: "POST", body: fd }).catch(() => null);
+      const data = res && res.ok ? await res.json().catch(() => null) : null;
+      setTranscribiendo(false);
+      if (data?.transcript) {
+        const texto = String(data.transcript).trim();
+        setInput((prev) => (prev ? `${prev} ${texto}` : texto));
+      } else {
+        const motivo =
+          res && !res.ok
+            ? ((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message
+            : null;
+        alert(motivo ?? "No pude transcribir la nota. Intenta de nuevo en unos segundos.");
       }
     };
 
-    crearYArrancar();
-  }, [listening]);
+    recorderRef.current = recorder;
+    recorder.start();
+    setGrabando(true);
+    // Tope de 3.5 min: corta solo para no pasarse del límite del server.
+    autoStopRef.current = setTimeout(() => {
+      try { if (recorderRef.current?.state === "recording") recorderRef.current.stop(); } catch {}
+    }, 210_000);
+  }, [grabando, transcribiendo]);
 
   async function send() {
-    // Escuchando → cortar el micrófono: lo transcrito queda en el input
-    // y este envío ya lo manda (como pediste el botón nunca queda pegado).
-    if (listening) {
-      matarReconocimiento(recognitionRef.current);
-      recognitionRef.current = null;
-      setListening(false);
+    // Grabando → el envío corta la nota y la manda a transcribir; el texto
+    // cae en el input y el usuario lo revisa y envía de verdad.
+    if (grabando) {
+      const rec = recorderRef.current;
+      if (rec && rec.state === "recording") rec.stop();
+      return;
     }
     const text = input.trim();
     if (!text || loading) return;
@@ -532,27 +532,28 @@ export function AiAssistant() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-            placeholder={listening ? "🎙️ Escuchando…" : "Mensaje"}
+            placeholder={grabando ? "🎙️ Grabando tu nota…" : transcribiendo ? "✍️ Transcribiendo…" : "Mensaje"}
             disabled={loading}
             className={`min-h-[44px] flex-1 rounded-full border bg-background px-4 text-sm focus:border-brand focus:outline-none disabled:opacity-50 ${
-              listening ? "border-brand ring-2 ring-brand/30" : ""
+              grabando ? "border-[#ff3b30] ring-2 ring-[#ff3b30]/30" : ""
             }`}
           />
           <button
-            onClick={toggleVoice}
+            onClick={toggleNotaVoz}
             type="button"
-            aria-label={listening ? "Detener dictado" : "Dictar"}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 ${
-              listening ? "animate-pulse bg-[#ff3b30] text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:bg-muted hover:text-brand"
+            aria-label={grabando ? "Terminar la nota y transcribir" : "Grabar nota de voz"}
+            disabled={transcribiendo}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-40 ${
+              grabando ? "animate-pulse bg-[#ff3b30] text-white shadow-lg shadow-red-500/30" : "text-muted-foreground hover:bg-muted hover:text-brand"
             }`}
           >
-            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            {grabando ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </button>
           <button
             id="ai-send-btn"
             onClick={send}
-            title={listening ? "Dejar de escuchar y enviar" : "Enviar"}
-            disabled={loading || (!input.trim() && !listening)}
+            title={grabando ? "Terminar la nota y transcribir" : transcribiendo ? "Transcribiendo…" : "Enviar"}
+            disabled={loading || transcribiendo || (!input.trim() && !grabando)}
             aria-label="Enviar"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-[#0856cc] text-white shadow-md transition-transform active:scale-90 disabled:opacity-40"
           >
