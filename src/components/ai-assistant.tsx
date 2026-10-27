@@ -356,11 +356,20 @@ export function AiAssistant() {
         const texto = String(data.transcript).trim();
         setInput((prev) => (prev ? `${prev} ${texto}` : texto));
       } else {
+        // Error VISIBLE en el chat (una alerta en el teléfono se pasa por alto).
         const motivo =
           res && !res.ok
             ? ((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message
             : null;
-        alert(motivo ?? "No pude transcribir la nota. Intenta de nuevo en unos segundos.");
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 2).toString(),
+            role: "assistant",
+            content: `🎙️ No pude transcribir tu nota. ${motivo ?? "Intenta de nuevo en unos segundos."}`,
+            timestamp: new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
       }
     };
 

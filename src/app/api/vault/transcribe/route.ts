@@ -13,9 +13,11 @@ const MAX_BYTES = 4_500_000;
 const GROQ_TRANSCRIBE = "https://api.groq.com/openai/v1/audio/transcriptions";
 
 export const POST = withAuth(async (session, req: Request) => {
-  // La key de GROQ vive cifrada en ai_settings (proveedor activo groq).
+  // Prioridad: la key de GROQ cifrada en ai_settings (proveedor activo groq);
+  // si no, una GROQ_API_KEY del entorno como respaldo de despliegue.
   const settings = await getAiSettings(session.organizationId);
-  const groqKey = settings?.provider === "groq" ? settings.apiKey : null;
+  const groqKey =
+    (settings?.provider === "groq" && settings.apiKey) || process.env.GROQ_API_KEY || null;
   if (!groqKey) {
     return apiError(
       503,

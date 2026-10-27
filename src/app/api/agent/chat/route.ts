@@ -3,6 +3,7 @@ import { apiError, parseBody, withAuth } from "@/lib/api";
 import { isAiConfigured } from "@/lib/env";
 import { chatJson, type ChatMessage } from "@/lib/ai";
 import { resolveProviderForOrg } from "@/server/ai/settings";
+import { citaDesdeTexto } from "@/server/telegram/cita-fallback";
 import { getSessionOrNull } from "@/lib/auth/session";
 import { checkRateLimitDb } from "@/lib/rate-limit-db";
 
@@ -165,7 +166,10 @@ Usa **negritas** y bullet points (•). No agregues nada fuera del JSON.`;
     );
   }
 
-  return Response.json({ text: result.data.text, action: result.data.action ?? null });
+  // RESPALDO determinista: si el modelo confirma con palabras pero se
+  // olvida del campo "action", el parser del bot construye la cita igual.
+  const action = result.data.action ?? citaDesdeTexto(message) ?? null;
+  return Response.json({ text: result.data.text, action });
 });
 
 /** Builds a human-readable summary of the CRM data sent from the client. */

@@ -73,3 +73,23 @@ export const PATCH = withAuth(async (session, req: Request) => {
   }
   return Response.json({ ok: true, appointment: actualizadas[0] });
 });
+
+/** DELETE — borra una cita de la organización (?id=). */
+export const DELETE = withAuth(async (session, req: Request) => {
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return apiError(422, "missing_id", "Falta ?id=");
+  const db = getDb();
+  const borradas = await db
+    .delete(schema.appointment)
+    .where(
+      and(
+        eq(schema.appointment.id, id),
+        eq(schema.appointment.organizationId, session.organizationId)
+      )
+    )
+    .returning();
+  if (!borradas[0]) {
+    return apiError(404, "not_found", "No encontré esa cita");
+  }
+  return Response.json({ ok: true });
+});
