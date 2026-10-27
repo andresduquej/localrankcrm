@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { Sparkles, X } from "lucide-react";
 
-const CURRENT_VERSION = "2.4.1";
+const CURRENT_VERSION = "2.4.2";
 const UPDATES = [
+  { version: "2.4.2", date: "26 Oct 2026", title: "Asistente arreglado de fondo: ve tu agenda real, reprograma y notas de voz", highlights: ["El asistente ahora lee tu agenda, tareas y contactos REALES de la base de datos", "NUEVO: pídele reprogramar («pásala al martes 4pm») y la mueve de verdad", "NUEVO: nota de voz con Whisper — toca el micrófono, habla, toca de nuevo y el texto cae en el mensaje", "La Agenda guarda en la base de datos: lo que creas ahí lo ven el bot, el Hoy y los recordatorios", "Horas siempre en hora de Colombia (antes se corrían 5 horas)", "Si algo falla, el chat te dice exactamente por qué"] },
   { version: "2.4.1", date: "24 Oct 2026", title: "Modo personal: tu CRM limpio de 6 destinos", highlights: ["Menú personal por defecto: Hoy, Agenda, Tareas, Bóveda, Bóveda de ideas y Contactos", "Los 47 módulos enterprise no se borran: viven en «Más» (móvil) y «Ver todos los módulos» (desktop)", "Cámbialo cuando quieras en Ajustes → Apariencia → Modo personal"] },
   { version: "2.4.0", date: "24 Oct 2026", title: "DuqueLabs: Mayordomo de tareas + Bóveda + Push al iPhone + IA multi-proveedor", highlights: ["Nueva marca: DuqueLabs (ícono y nombre en tu teléfono)", "Mayordomo por Telegram: /tarea, /pendientes, /listo — pide el tiempo y te fastidia cada 2h hasta que hagas la tarea 😐→😠→🤬", "Tareas de hoy reales en el Inicio (click las marca hechas)", "Bóveda: guarda repos de GitHub (con estrellas, actividad y releases), páginas y herramientas — e importa tus favoritos de Chrome", "Notificaciones push al iPhone (pantalla de bloqueo) para citas y tareas vencidas", "Fastidio cada hora con ping externo (URL lista en Ajustes → Notificaciones)", "Configura tu IA en la app: OpenRouter, GROQ gratis, NVIDIA gratis, OpenAI, DeepSeek y más — llaves cifradas", "Endpoint de Hermes listo y guardado (planeación)"] },
   { version: "2.3.0", date: "27 Jul 2026", title: "Calendario Mes/Semana/Día + Editor Rico + Reordenar + Mobile", highlights: ["Calendario con 3 vistas: Mes, Semana y Día (timeline por horas)", "Editor de texto enriquecido en Notas, Proyectos y Tareas (negrita, itálica, links, listas, código)", "Reordenar items con ↑↓ en Checklists, Proyectos y Propuestas", "Mobile mejorado: Radar, Scout, Contactos, Compañías, Calendario, Workspace", "Checklists: items con flechas de prioridad", "Propuestas: secciones reordenables"] },
@@ -78,7 +79,8 @@ export function UpdateBanner() {
                 </div>
               ))}
             </div>
-            <button onClick={() => { setShowDetails(false); dismiss(); }} className="w-full mt-4 rounded-md bg-brand py-2 text-sm font-medium text-white hover:bg-brand-hover">Entendido</button>
+            <button onClick={() => window.location.reload()} className="w-full mt-4 rounded-md bg-brand py-2 text-sm font-medium text-white hover:bg-brand-hover">Actualizar ahora</button>
+            <button onClick={() => { setShowDetails(false); dismiss(); }} className="w-full mt-1.5 text-[11px] text-muted-foreground">Entendido, después</button>
           </div>
         </div>
       )}
