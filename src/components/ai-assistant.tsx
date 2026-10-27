@@ -129,7 +129,13 @@ async function getCrmContext(): Promise<Record<string, unknown>> {
 /** Convierte lo que diga el modelo ("2026-10-26T15:00:00-05:00", "2026-10-26 15:00"…) a ISO válido. */
 function aIso(v: unknown): string | null {
   if (typeof v !== "string" || !v.trim()) return null;
-  const d = new Date(v.trim());
+  let s = v.trim();
+  // Fecha/hora SIN zona (el modelo suele emitir "2026-10-27T19:00:00"):
+  // se interpreta como hora de COLOMBIA (UTC-5). Sin esto, el servidor
+  // (Vercel corre en UTC) la tomaba tal cual: 5 horas de diferencia.
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}$/.test(s)) s = `${s}:00-05:00`;
+  else if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}$/.test(s)) s = `${s}-05:00`;
+  const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 

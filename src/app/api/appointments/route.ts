@@ -18,7 +18,8 @@ export const GET = withAuth(async (session) => {
 
 const postSchema = z.object({
   title: z.string().trim().min(1).max(300),
-  startsAt: z.string().datetime(),
+  // offset: true → acepta "…Z" y "…-05:00" (el modelo a veces manda offset).
+  startsAt: z.string().datetime({ offset: true }),
   notes: z.string().max(2000).optional(),
 });
 
@@ -38,7 +39,7 @@ export const POST = withAuth(async (session, req: Request) => {
 const patchSchema = z.object({
   id: z.string().min(1),
   title: z.string().trim().min(1).max(300).optional(),
-  startsAt: z.string().datetime().optional(),
+  startsAt: z.string().datetime({ offset: true }).optional(),
   notes: z.string().max(2000).optional(),
   done: z.boolean().optional(),
 });
