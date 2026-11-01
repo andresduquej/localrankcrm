@@ -4,9 +4,8 @@ import type { NextRequest } from "next/server";
 /**
  * Security middleware:
  * 1. Protects (app) routes — requires auth session
- * 2. Allows (preview) routes without auth (demo mode)
- * 3. Adds security headers to all responses
- * 4. Blocks internal routes and source maps
+ * 2. Adds security headers to all responses
+ * 3. Blocks internal routes and source maps
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -26,9 +25,8 @@ export function middleware(request: NextRequest) {
   );
 
   // --- Auth protection for (app) routes ---
-  // Skip auth for: preview, login, register, api/auth, static files
-  const isPublicRoute = 
-    pathname.startsWith("/preview") ||
+  // Skip auth for: login, register, api/auth, static files
+  const isPublicRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/api/auth") ||
@@ -44,12 +42,12 @@ export function middleware(request: NextRequest) {
 
   if (!isPublicRoute && !pathname.startsWith("/api/")) {
     // Check for Better Auth session cookie
-    const sessionCookie = request.cookies.get("better-auth.session_token") || 
+    const sessionCookie = request.cookies.get("better-auth.session_token") ||
                           request.cookies.get("__Secure-better-auth.session_token");
-    
+
     if (!sessionCookie?.value) {
-      // No session — redirect to login (or preview for now)
-      const loginUrl = new URL("/preview/dashboard", request.url);
+      // No session — al login (el modo demo/preview fue eliminado)
+      const loginUrl = new URL("/login", request.url);
       return NextResponse.redirect(loginUrl);
     }
   }
