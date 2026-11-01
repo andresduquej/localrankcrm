@@ -4,77 +4,38 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Book,
   ChevronRight,
-  Lightbulb,
   MoreHorizontal,
   Search,
   Settings,
-  Trash2,
   X,
 } from "lucide-react";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
-import {
-  ALL_NAV,
-  MOBILE_TABS,
-  NAV_CATEGORIES,
-  PERSONAL_MOBILE_TABS,
-  PERSONAL_MODE_EVENT,
-  isPersonalMode,
-  personalSheetCategories,
-} from "@/lib/nav";
+import { ALL_NAV, MOBILE_TABS, NAV_CATEGORIES } from "@/lib/nav";
 import { useEvents } from "@/components/use-events";
 
 /**
  * Navegación móvil estilo iOS: cabecera flotante de vidrio con el título de
  * la sección, tab bar inferior con blur y la hoja "Más" (una sheet que sube
- * con curva de resorte) que contiene TODOS los módulos del CRM agrupados y
- * buscables. No elimina secciones: las que no caben en la tab bar viven en
- * la hoja. En modo personal (por defecto) la tab bar es lo tuyo: Hoy,
- * Agenda, Tareas, Contactos.
+ * con curva de resorte) con todos los destinos del CRM, buscables.
  */
 export function MobileShell({ userName, role }: { userName: string; role: string }) {
   const pathname = usePathname();
-  const isPreview = pathname.startsWith("/preview");
-  const prefix = isPreview ? "/preview" : "";
   const [moreOpen, setMoreOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [unread, setUnread] = useState(0);
-  const [personal, setPersonal] = useState(true);
-
-  useEffect(() => {
-    setPersonal(isPersonalMode());
-    const onMode = () => setPersonal(isPersonalMode());
-    window.addEventListener(PERSONAL_MODE_EVENT, onMode);
-    return () => window.removeEventListener(PERSONAL_MODE_EVENT, onMode);
-  }, []);
-
-  /** Cambia entre modo personal (lo tuyo) y completo (todos los módulos). */
-  function setModePersonal(v: boolean) {
-    try {
-      localStorage.setItem("duquelabs_personal_mode", String(v));
-    } catch {}
-    window.dispatchEvent(new Event("duquelabs-mode"));
-  }
-
-  const tabs = personal ? PERSONAL_MOBILE_TABS : MOBILE_TABS;
 
   // Título de la sección actual para la cabecera (large title compacto)
   const title = useMemo(() => {
-    if (pathname.startsWith(`${prefix}/settings`) || pathname.startsWith("/settings")) return "Ajustes";
+    if (pathname.startsWith("/settings")) return "Ajustes";
     const hit = ALL_NAV.find(
-      (i) =>
-        pathname === `${prefix}${i.href}` ||
-        pathname === i.href ||
-        pathname.startsWith(`${prefix}${i.href}/`) ||
-        pathname.startsWith(`${i.href}/`)
+      (i) => pathname === i.href || pathname.startsWith(`${i.href}/`)
     );
     return hit?.label ?? "CRM";
-  }, [pathname, prefix]);
+  }, [pathname]);
 
   async function refetchUnread() {
-    if (isPreview) return;
     const res = await fetch("/api/conversations").catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json()) as { conversations: { unreadCount: number }[] };
@@ -83,10 +44,7 @@ export function MobileShell({ userName, role }: { userName: string; role: string
 
   useEffect(() => {
     void refetchUnread();
-    // Apariencia personal (acento + esquinas) guardada en este navegador
-    import("@/lib/appearance").then(({ loadAppearance, applyAppearance }) => {
-      applyAppearance(loadAppearance());
-    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEvents({
@@ -109,21 +67,16 @@ export function MobileShell({ userName, role }: { userName: string; role: string
 
   const q = query.trim().toLowerCase();
   const categories = useMemo(() => {
-    const base = personal ? personalSheetCategories() : NAV_CATEGORIES;
-    if (!q) return base;
-    return base
-      .map((c) => ({
-        label: c.label,
-        items: c.items.filter((i) => i.label.toLowerCase().includes(q)),
-      }))
-      .filter((c) => c.items.length > 0);
-  }, [q, personal]);
+    if (!q) return NAV_CATEGORIES;
+    return NAV_CATEGORIES.map((c) => ({
+      label: c.label,
+      items: c.items.filter((i) => i.label.toLowerCase().includes(q)),
+    })).filter((c) => c.items.length > 0);
+  }, [q]);
 
   const isActive = (href: string) =>
-    pathname === `${prefix}${href}` ||
-    pathname === href ||
-    pathname.startsWith(`${prefix}${href}/`) ||
-    (href === "/dashboard" && (pathname === "/" || pathname === "/preview"));
+    pathname === href || pathname.startsWith(`${href}/`) ||
+    (href === "/dashboard" && pathname === "/");
 
   return (
     <>
@@ -154,12 +107,12 @@ export function MobileShell({ userName, role }: { userName: string; role: string
         style={{ paddingBottom: "var(--safe-bottom)" }}
       >
         <div className="flex items-stretch justify-around px-1 pt-1.5 pb-1">
-          {tabs.map((tab) => {
+          {MOBILE_TABS.map((tab) => {
             const active = isActive(tab.href);
             return (
               <Link
                 key={tab.href}
-                href={`${prefix}${tab.href}`}
+                href={tab.href}
                 className="ios-press relative flex min-w-[16%] flex-col items-center gap-0.5 rounded-xl px-2 py-1"
               >
                 <span className="relative">
@@ -242,11 +195,6 @@ export function MobileShell({ userName, role }: { userName: string; role: string
               {categories.length === 0 && (
                 <p className="py-10 text-center text-[15px] text-foreground/50">
                   No hay secciones que coincidan con «{query}».
-                  {personal && (
-                    <span className="mt-2 block text-xs">
-                      Los demás módulos están escondidos — toca «Ver todos los módulos» para buscarlos.
-                    </span>
-                  )}
                 </p>
               )}
               {categories.map((cat, catIdx) => (
@@ -258,7 +206,7 @@ export function MobileShell({ userName, role }: { userName: string; role: string
                     {cat.items.map((item, i) => (
                       <Link
                         key={item.href}
-                        href={`${prefix}${item.href}`}
+                        href={item.href}
                         className={cn(
                           "ios-press-sm flex items-center gap-3 px-3.5 py-[11px] active:bg-foreground/5",
                           i > 0 && "hairline-t"
@@ -273,6 +221,11 @@ export function MobileShell({ userName, role }: { userName: string; role: string
                             {item.badge}
                           </span>
                         )}
+                        {item.badge === true && unread > 0 && (
+                          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#ff3b30] px-1 text-[10px] font-semibold text-white">
+                            {unread > 99 ? "99+" : unread}
+                          </span>
+                        )}
                         {isActive(item.href) ? (
                           <span className="text-[12px] font-semibold text-[var(--accent)]">Aquí</span>
                         ) : (
@@ -284,44 +237,15 @@ export function MobileShell({ userName, role }: { userName: string; role: string
                 </section>
               ))}
 
-              {/* Cambio de modo: personal ↔ completo */}
-              <button
-                onClick={() => setModePersonal(!personal)}
-                className="ios-press-sm mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] bg-foreground/[0.035] px-4 py-3 text-[14px] font-semibold text-foreground/80 hairline-t active:bg-foreground/5"
-              >
-                <MoreHorizontal className="h-4 w-4" strokeWidth={2} />
-                {personal ? "Ver todos los módulos" : "Volver al modo personal (solo lo tuyo)"}
-              </button>
-
-              {/* Sistema: docs, sugerencias, papelera, ajustes y cuenta */}
+              {/* Sistema: ajustes y cuenta */}
               <section className="mt-5">
                 <h3 className="mb-1.5 px-3 text-[12px] font-semibold uppercase tracking-[0.06em] text-foreground/45">
                   Sistema
                 </h3>
                 <div className="overflow-hidden rounded-[16px] bg-foreground/[0.035] hairline-t">
-                  {[
-                    { href: "/docs", label: "Documentación", icon: Book },
-                    { href: "/suggestions", label: "Sugerencias", icon: Lightbulb },
-                    { href: "/trash", label: "Papelera", icon: Trash2 },
-                  ].map((r, i) => (
-                    <Link
-                      key={r.href}
-                      href={`${prefix}${r.href}`}
-                      className={cn(
-                        "ios-press-sm flex items-center gap-3 px-3.5 py-[11px] active:bg-foreground/5",
-                        i > 0 && "hairline-t"
-                      )}
-                    >
-                      <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-foreground/8 text-foreground/70">
-                        <r.icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                      </span>
-                      <span className="flex-1 text-[15px] text-foreground">{r.label}</span>
-                      <ChevronRight className="h-4 w-4 text-foreground/25" strokeWidth={2.4} />
-                    </Link>
-                  ))}
                   <Link
-                    href={`${prefix}/settings`}
-                    className="ios-press-sm hairline-t flex items-center gap-3 px-3.5 py-[11px] active:bg-foreground/5"
+                    href="/settings"
+                    className="ios-press-sm flex items-center gap-3 px-3.5 py-[11px] active:bg-foreground/5"
                   >
                     <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[8px] bg-foreground/8 text-foreground/70">
                       <Settings className="h-[17px] w-[17px]" strokeWidth={1.8} />
@@ -347,8 +271,8 @@ export function MobileShell({ userName, role }: { userName: string; role: string
                   <button
                     aria-label="Cerrar sesión"
                     onClick={async () => {
-                      if (!isPreview) await signOut();
-                      window.location.href = isPreview ? "/preview/dashboard" : "/login";
+                      await signOut();
+                      window.location.href = "/login";
                     }}
                     className="ios-press rounded-full px-3 py-1.5 text-[13px] font-semibold text-[#ff3b30]"
                   >

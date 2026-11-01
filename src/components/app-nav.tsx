@@ -3,23 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Book,
-  ChevronDown,
-  LayoutDashboard,
-  Lightbulb,
-  LogOut,
-  Menu,
-  Search,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Search, Settings } from "lucide-react";
 import type { Branding } from "@/lib/branding";
 import { cn, initials } from "@/lib/utils";
 import { signOut } from "@/lib/auth/client";
 import { getActiveWorkspaceId, loadFromStorage } from "@/lib/local-storage";
 import { useEvents } from "@/components/use-events";
-import { NAV_CATEGORIES, PERSONAL_MODE_EVENT, PERSONAL_NAV, isPersonalMode } from "@/lib/nav";
+import { CORE_NAV } from "@/lib/nav";
 
 export function AppNav({
   branding,
@@ -33,31 +23,11 @@ export function AppNav({
   const pathname = usePathname();
   const router = useRouter();
   const [unread, setUnread] = useState(0);
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [activeWsName, setActiveWsName] = useState("");
-  const [personal, setPersonal] = useState(true);
-  const isPreview = pathname.startsWith("/preview");
-  const prefix = isPreview ? "/preview" : "";
-
-  // Modo personal (por defecto): 6 destinos tuyos; el resto a un botón.
-  useEffect(() => {
-    setPersonal(isPersonalMode());
-    const onMode = () => setPersonal(isPersonalMode());
-    window.addEventListener(PERSONAL_MODE_EVENT, onMode);
-    return () => window.removeEventListener(PERSONAL_MODE_EVENT, onMode);
-  }, []);
-
-  function setModePersonal(v: boolean) {
-    try {
-      localStorage.setItem("duquelabs_personal_mode", String(v));
-    } catch {}
-    window.dispatchEvent(new Event(PERSONAL_MODE_EVENT));
-  }
 
   // Load workspace name from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Get active workspace name
       const wsId = getActiveWorkspaceId();
       if (wsId && wsId !== "default") {
         const workspaces = loadFromStorage<Array<{id: string; name: string}>>("workspaces_v2", []);
@@ -68,7 +38,6 @@ export function AppNav({
   }, []);
 
   async function refetchUnread() {
-    if (isPreview) return;
     const res = await fetch("/api/conversations").catch(() => null);
     if (!res?.ok) return;
     const data = (await res.json()) as {
@@ -79,12 +48,15 @@ export function AppNav({
 
   useEffect(() => {
     void refetchUnread();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEvents({
     onMessageNew: () => void refetchUnread(),
     onConversationUpdated: () => void refetchUnread(),
   });
+
+  const isPreview = pathname.startsWith("/preview");
 
   return (
     // En móvil la navegación vive en MobileShell (tab bar iOS + hoja Más);
@@ -97,7 +69,7 @@ export function AppNav({
           <span className="block truncate text-[16px] font-[700] leading-tight tracking-tight text-white">
             {branding.name}
           </span>
-          <span className="block text-[11px] text-white/60">{activeWsName || "Enterprise CRM"}</span>
+          <span className="block text-[11px] text-white/60">{activeWsName || "Tu CRM"}</span>
         </span>
         <button
           onClick={() => {
@@ -119,89 +91,34 @@ export function AppNav({
         <button onClick={() => { const e = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }); window.dispatchEvent(e); }} className="flex items-center gap-[11px] rounded-lg px-3 py-2 text-sm font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors mb-1">
           <Search className="h-[18px] w-[18px]" strokeWidth={1.7} /><span className="flex-1">Buscar...</span><kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] font-mono text-white/40">⌘K</kbd>
         </button>
-        {/* Dashboard / Hoy — siempre visible */}
-        <Link href={`${prefix}/dashboard`} className={cn("flex items-center gap-[11px] rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", (pathname === `${prefix}/dashboard` || pathname === "/dashboard") ? "bg-[var(--sidebar-active)] border-l-[3px] border-[var(--sidebar-active-text)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
-          <LayoutDashboard className="h-[18px] w-[18px]" strokeWidth={1.7} /><span>{personal ? "Hoy" : "Dashboard"}</span>
+        {/* Hoy — siempre arriba */}
+        <Link href="/dashboard" className={cn("flex items-center gap-[11px] rounded-lg px-3 py-2.5 text-sm font-medium transition-colors", pathname === "/dashboard" ? "bg-[var(--sidebar-active)] border-l-[3px] border-[var(--sidebar-active-text)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
+          <LayoutDashboard className="h-[18px] w-[18px]" strokeWidth={1.7} /><span>Hoy</span>
         </Link>
 
-        {personal ? (
-          /* Modo personal: solo lo tuyo, del tamaño de tu día. */
-          <div className="mt-1 space-y-0.5">
-            {PERSONAL_NAV.filter(i => i.href !== "/dashboard").map(item => {
-              const href = `${prefix}${item.href}`;
-              const active = pathname === href || pathname.startsWith(`${href}/`) || pathname === item.href || pathname.startsWith(`${item.href}/`);
-              return (
-                <Link key={item.href} href={href} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-2 text-[13px] font-medium transition-colors", active ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
-                  <item.icon className="h-[15px] w-[15px] text-white/50" strokeWidth={1.5} />
-                  <span className="flex-1">{item.label}</span>
-                </Link>
-              );
-            })}
-            <button onClick={() => setModePersonal(false)} className="mt-2 flex w-full items-center gap-[10px] rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white/70 hover:bg-white/5">
-              <Menu className="h-[13px] w-[13px]" strokeWidth={1.7} />
-              <span className="flex-1 text-left">Ver todos los módulos</span>
-            </button>
-          </div>
-        ) : (
-          /* Modo completo: todas las categorías. */
-          <>
-          {NAV_CATEGORIES.map(cat => {
-          const isExpanded = expandedCats.has(cat.label);
-          const hasActive = cat.items.some(item => pathname === `${prefix}${item.href}` || pathname === item.href || pathname.startsWith(`${prefix}${item.href}/`));
-          return (
-            <div key={cat.label}>
-              <button onClick={() => { const next = new Set(expandedCats); if (next.has(cat.label)) next.delete(cat.label); else next.add(cat.label); setExpandedCats(next); }} className={cn("flex w-full items-center gap-[11px] rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors mt-1", hasActive ? "text-[var(--sidebar-active-text)]" : "text-white/40 hover:text-white/60")}>
-                <ChevronDown className={cn("h-3 w-3 transition-transform", !isExpanded && "-rotate-90")} />
-                <span className="flex-1 text-left">{cat.label}</span>
-                <span className="text-[9px] font-normal opacity-60">{cat.items.length}</span>
-              </button>
-              {isExpanded && (
-                <div className="space-y-0.5 ml-1">
-                  {cat.items.map(item => {
-                    const href = `${prefix}${item.href}`;
-                    const active = pathname === href || pathname.startsWith(`${href}/`) || pathname === item.href || pathname.startsWith(`${item.href}/`);
-                    return (
-                      <Link key={item.href} href={href} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors", active ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/60 hover:text-white hover:bg-white/8")}>
-                        <item.icon className={cn("h-[14px] w-[14px]", active ? "text-[var(--sidebar-active-text)]" : "text-white/50")} strokeWidth={1.5} />
-                        <span className="flex-1">{item.label}</span>
-                        {item.badge === true && unread > 0 && <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-white/20 px-1 text-[9px] font-semibold text-white">{unread}</span>}
-                        {typeof item.badge === "string" && <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-300">{item.badge}</span>}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-          <button onClick={() => setModePersonal(true)} className="mt-2 flex w-full items-center gap-[10px] rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40 hover:text-white/70 hover:bg-white/5">
-            <Menu className="h-[13px] w-[13px]" strokeWidth={1.7} />
-            <span className="flex-1 text-left">Volver al modo personal</span>
-          </button>
-          </>
-        )}
+        <div className="mt-1 space-y-0.5">
+          {CORE_NAV.filter(i => i.href !== "/dashboard").map(item => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link key={item.href} href={item.href} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-2 text-[13px] font-medium transition-colors", active ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/70 hover:text-white hover:bg-white/10")}>
+                <item.icon className="h-[15px] w-[15px] text-white/50" strokeWidth={1.5} />
+                <span className="flex-1">{item.label}</span>
+                {item.badge === true && unread > 0 && (
+                  <span className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-white/20 px-1 text-[9px] font-semibold text-white">{unread}</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
       <div className="flex-1" />
 
-      {/* Help & Support */}
-      <div className="mb-1 space-y-0.5 border-t border-white/10 pt-2">
-        <Link href={`${prefix}/docs`} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors", pathname === `${prefix}/docs` || pathname === "/docs" ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/50 hover:text-white/80 hover:bg-white/5")}>
-          <Book className="h-[14px] w-[14px]" strokeWidth={1.5} /><span>Documentación</span>
-        </Link>
-        <Link href={`${prefix}/suggestions`} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors", pathname === `${prefix}/suggestions` || pathname === "/suggestions" ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/50 hover:text-white/80 hover:bg-white/5")}>
-          <Lightbulb className="h-[14px] w-[14px]" strokeWidth={1.5} /><span>Sugerencias</span>
-        </Link>
-        <Link href={`${prefix}/trash`} className={cn("flex items-center gap-[10px] rounded-lg px-3 py-1.5 text-xs font-medium transition-colors", pathname.includes("/trash") ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]" : "text-white/50 hover:text-white/80 hover:bg-white/5")}>
-          <Trash2 className="h-[14px] w-[14px]" strokeWidth={1.5} /><span>Papelera</span>
-        </Link>
-      </div>
-
       <Link
-        href={`${prefix}/settings`}
+        href="/settings"
         className={cn(
           "flex items-center gap-[11px] rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-          pathname.startsWith("/settings") || pathname.startsWith("/preview/settings")
+          pathname.startsWith("/settings")
             ? "bg-[var(--sidebar-active)] text-[var(--sidebar-active-text)]"
             : "text-white/70 hover:text-white hover:bg-white/10"
         )}
@@ -209,7 +126,7 @@ export function AppNav({
         <Settings
           className={cn(
             "h-[18px] w-[18px]",
-            pathname.startsWith("/settings") || pathname.startsWith("/preview/settings") ? "text-[var(--sidebar-active-text)]" : "text-white/70"
+            pathname.startsWith("/settings") ? "text-[var(--sidebar-active-text)]" : "text-white/70"
           )}
           strokeWidth={1.7}
         />
@@ -231,8 +148,8 @@ export function AppNav({
           title="Cerrar sesión"
           className="rounded p-1 text-white/50 hover:text-white"
           onClick={async () => {
-            if (!isPreview) await signOut();
-            router.push(isPreview ? "/preview/dashboard" : "/login");
+            await signOut();
+            router.push("/login");
             router.refresh();
           }}
         >

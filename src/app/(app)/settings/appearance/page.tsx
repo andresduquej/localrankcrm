@@ -199,9 +199,6 @@ export default function AppearancePage() {
         <p className="mt-3 text-xs text-muted-foreground">El cambio de idioma se aplicará a toda la interfaz del CRM.</p>
       </div>
 
-      {/* Personal mode */}
-      <PersonalModeCard />
-
       <button onClick={handleSave} className="rounded-md bg-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover">{saved ? "✓ Guardado" : "Guardar preferencias"}</button>
 
       {/* Blur / Privacy Mode */}
@@ -216,65 +213,10 @@ export default function AppearancePage() {
 
 const BLUR_MODULES = [
   { id: "contacts", label: "Contactos" },
-  { id: "pipeline", label: "Pipeline" },
-  { id: "opportunities", label: "Oportunidades" },
-  { id: "cartera", label: "Cartera" },
-  { id: "proposals", label: "Propuestas" },
   { id: "inbox", label: "Conversaciones" },
-  { id: "analytics", label: "Analytics" },
-  { id: "notes", label: "Notas" },
-  { id: "team", label: "Equipo" },
+  { id: "vault", label: "Recursos" },
 ];
 
-/** Modo personal: menú de 6 destinos tuyos; el resto vive en "Más". */
-function PersonalModeCard() {
-  const [personal, setPersonal] = useState(true);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPersonal(localStorage.getItem("duquelabs_personal_mode") !== "false");
-    }
-  }, []);
-
-  function cambiar(v: boolean) {
-    setPersonal(v);
-    try {
-      localStorage.setItem("duquelabs_personal_mode", String(v));
-    } catch {}
-    window.dispatchEvent(new Event("duquelabs-mode"));
-  }
-
-  return (
-    <div className="rounded-lg border bg-white p-5 dark:bg-gray-900 dark:border-gray-700">
-      <h4 className="font-medium mb-1 flex items-center gap-2">
-        <Shield className="h-4 w-4" />
-        Modo personal
-      </h4>
-      <p className="text-xs text-muted-foreground mb-4">
-        Tu CRM con solo lo tuyo: Hoy, Agenda, Tareas, Bóveda, Bóveda de ideas y Contactos.
-        Nada se elimina — los demás módulos siguen a un toque en «Más» / «Ver todos los módulos».
-      </p>
-      <div className="flex gap-2">
-        <button
-          onClick={() => cambiar(true)}
-          className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all ${
-            personal ? "border-brand bg-brand-tint text-brand" : "hover:border-gray-300"
-          }`}
-        >
-          Personal (lo tuyo)
-        </button>
-        <button
-          onClick={() => cambiar(false)}
-          className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-all ${
-            !personal ? "border-brand bg-brand-tint text-brand" : "hover:border-gray-300"
-          }`}
-        >
-          Completo (todos)
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function BlurConfig() {
   const [blurConfig, setBlurConfig] = useState<Record<string, boolean>>({});

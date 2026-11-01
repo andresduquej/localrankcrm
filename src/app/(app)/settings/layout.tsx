@@ -5,26 +5,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  // Canales
-  { href: "/settings/whatsapp", label: "WhatsApp" },
-  { href: "/settings/telegram", label: "Telegram" },
-  { href: "/settings/sms", label: "SMS" },
-  { href: "/settings/email-marketing", label: "Email Marketing" },
-  // Integraciones & APIs
   { href: "/settings/ai-providers", label: "IA / APIs" },
-  { href: "/settings/mcp", label: "MCP" },
-  { href: "/settings/integrations", label: "Conectores" },
-  { href: "/settings/webhooks", label: "Webhooks & APIs" },
-  // Tracking & Sistema
-  { href: "/settings/tracking", label: "Pixels & UTM" },
-  { href: "/settings/currency", label: "Moneda" },
-  // Personalización
-  { href: "/settings/branding", label: "Marca" },
-  { href: "/settings/appearance", label: "Apariencia" },
+  { href: "/settings/telegram", label: "Telegram" },
   { href: "/settings/notifications", label: "Notificaciones" },
-  { href: "/settings/shortcuts", label: "Atajos" },
-  // Organización
-  { href: "/settings/team", label: "Equipo" },
+  { href: "/settings/appearance", label: "Apariencia" },
   { href: "/settings/account", label: "Cuenta" },
 ] as const;
 
